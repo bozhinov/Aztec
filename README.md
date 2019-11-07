@@ -1,25 +1,19 @@
-# Metzli
+# Aztec (ex Metzli) - Work in progress
 
-[![Build Status](https://travis-ci.org/z38/metzli.png?branch=master)](https://travis-ci.org/z38/metzli)
-
-**Metzli** is a PHP library to generate Aztec 2D barcodes.
+**Aztec** is a PHP library to generate Aztec 2D barcodes.
 
 ![Aztec code example](http://i.imgur.com/8JcHtOl.png)
 
-## Installing
-
-Just install [Composer](http://getcomposer.org) and run `composer require z38/metzli` in your project directory.
-
 ## Usage
 
-Using **Metzli** in your existing project is very easy:
+Using **Aztec** in your existing project is very easy:
 
 ```php
 
 require 'vendor/autoload.php';
 
-use Metzli\Encoder\Encoder;
-use Metzli\Renderer\PngRenderer;
+use Aztec\Encoder\Encoder;
+use Aztec\Renderer\PngRenderer;
 
 // ... some awesome code here ...
 
@@ -45,4 +39,4 @@ let me know, and/or **open a new issue report** so that I or others may take car
 
 ## Credits
 
-**Metzli** is heavily based on [ZXing](https://github.com/zxing/zxing) and is basically a port of its Aztec encoding part.
+**Aztec** is heavily based on [ZXing](https://github.com/zxing/zxing) and is basically a port of its Aztec encoding part.
