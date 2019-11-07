@@ -27,17 +27,16 @@ use Aztec\Utils\BitMatrix;
 
 class Encoder
 {
-    const DEFAULT_EC_PERCENT = 33;
-    const LAYERS_COMPACT = 5;
-    const LAYERS_FULL = 33;
+    private $LAYERS_COMPACT = 5;
+    private $LAYERS_FULL = 33;
 
-    private static $wordSize = [
+    private $wordSize = [
          4,  6,  6,  8,  8,  8,  8,  8,  8, 10, 10,
         10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
         10, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12,
     ];
 
-    public static function encode(string $content, $eccPercent = self::DEFAULT_EC_PERCENT, $dataEncoder = null)
+    public function encode(string $content, int $eccPercent = 33, $dataEncoder = null)
     {
         if (null === $dataEncoder) {
             $dataEncoder = new DynamicDataEncoder();
@@ -53,29 +52,29 @@ class Encoder
         $wordSize = 0;
         $totalSymbolBits = 0;
         $stuffedBits = null;
-        for ($layers = 1; $layers < self::LAYERS_COMPACT; $layers++) {
-            if (self::getBitsPerLayer($layers, false) >= $totalSizeBits) {
-                if ($wordSize != self::$wordSize[$layers]) {
-                    $wordSize = self::$wordSize[$layers];
-                    $stuffedBits = self::stuffBits($bits, $wordSize);
+        for ($layers = 1; $layers < $this->LAYERS_COMPACT; $layers++) {
+            if ($this->getBitsPerLayer($layers, false) >= $totalSizeBits) {
+                if ($wordSize != $this->wordSize[$layers]) {
+                    $wordSize = $this->wordSize[$layers];
+                    $stuffedBits = $this->stuffBits($bits, $wordSize);
                 }
 
-                $totalSymbolBits = self::getBitsPerLayer($layers, false);
+                $totalSymbolBits = $this->getBitsPerLayer($layers, false);
                 if ($stuffedBits->getLength() + $eccBits <= $totalSymbolBits) {
                     break;
                 }
             }
         }
         $compact = true;
-        if ($layers == self::LAYERS_COMPACT) {
+        if ($layers == $this->LAYERS_COMPACT) {
             $compact = false;
-            for ($layers = 1; $layers < self::LAYERS_FULL; $layers++) {
-                if (self::getBitsPerLayer($layers, true) >= $totalSizeBits) {
-                    if ($wordSize != self::$wordSize[$layers]) {
-                        $wordSize = self::$wordSize[$layers];
-                        $stuffedBits = self::stuffBits($bits, $wordSize);
+            for ($layers = 1; $layers < $this->LAYERS_FULL; $layers++) {
+                if ($this->getBitsPerLayer($layers, true) >= $totalSizeBits) {
+                    if ($wordSize != $this->wordSize[$layers]) {
+                        $wordSize = $this->wordSize[$layers];
+                        $stuffedBits = $this->stuffBits($bits, $wordSize);
                     }
-                    $totalSymbolBits = self::getBitsPerLayer($layers, true);
+                    $totalSymbolBits = $this->getBitsPerLayer($layers, true);
                     if ($stuffedBits->getLength() + $eccBits <= $totalSymbolBits) {
                         break;
                     }
@@ -83,7 +82,7 @@ class Encoder
             }
         } 
 
-		if ($layers == self::LAYERS_FULL) {
+		if ($layers == $this->LAYERS_FULL) {
             throw new \InvalidArgumentException('Data too large');
         }
 
@@ -93,9 +92,9 @@ class Encoder
         }
 
         // generate check words
-        $rs = new ReedSolomonEncoder(self::getGF($wordSize));
+        $rs = new ReedSolomonEncoder($this->getGF($wordSize));
         $totalSizeInFullWords = intval($totalSymbolBits / $wordSize);
-        $messageWords = self::bitsToWords($stuffedBits, $wordSize, $totalSizeInFullWords);
+        $messageWords = $this->bitsToWords($stuffedBits, $wordSize, $totalSizeInFullWords);
         $messageWords = $rs->encodePadded($messageWords, $totalSizeInFullWords - $messageSizeInWords);
 
         // convert to bit array and pad in the beginning
@@ -107,7 +106,7 @@ class Encoder
         }
 
         // generate mode message
-        $modeMessage = self::generateModeMessage($compact, $layers, $messageSizeInWords);
+        $modeMessage = $this->generateModeMessage($compact, $layers, $messageSizeInWords);
 
         // allocate symbol
         if ($compact) {
@@ -157,13 +156,13 @@ class Encoder
             $rowOffset += $rowSize * 8;
         }
 
-        $matrix = self::drawModeMessage($matrix, $compact, $matrixSize, $modeMessage);
+        $matrix = $this->drawModeMessage($matrix, $compact, $matrixSize, $modeMessage);
 
         // draw alignment marks
         if ($compact) {
-            $matrix = self::drawBullsEye($matrix, intval($matrixSize / 2), 5);
+            $matrix = $this->drawBullsEye($matrix, intval($matrixSize / 2), 5);
         } else {
-            $matrix = self::drawBullsEye($matrix, intval($matrixSize / 2), 7);
+            $matrix = $this->drawBullsEye($matrix, intval($matrixSize / 2), 7);
             for ($i = 0, $j = 0; $i < intval($baseMatrixSize / 2) - 1; $i += 15, $j += 16) {
                 for ($k = intval($matrixSize / 2) & 1; $k < $matrixSize; $k += 2) {
                     $matrix->set(intval($matrixSize / 2) - $j, $k);
@@ -177,7 +176,7 @@ class Encoder
         return $matrix;
     }
 
-    private static function getBitsPerLayer($layer, $full = true)
+    private function getBitsPerLayer($layer, $full = true)
     {
         if ($full) {
             return (112 + 16 * $layer) * $layer;
@@ -186,7 +185,7 @@ class Encoder
         }
     }
 
-    private static function bitsToWords(BitArray $stuffedBits, $wordSize, $totalWords)
+    private function bitsToWords(BitArray $stuffedBits, $wordSize, $totalWords)
     {
         $message = array_fill(0, $totalWords, 0);
         $n = intval($stuffedBits->getLength() / $wordSize);
@@ -201,7 +200,7 @@ class Encoder
         return $message;
     }
 
-    private static function getGF($wordSize)
+    private function getGF($wordSize)
     {
         switch ($wordSize) {
             case 4:
@@ -219,7 +218,7 @@ class Encoder
         }
     }
 
-    public static function stuffBits(BitArray $bits, $wordSize)
+    private function stuffBits(BitArray $bits, $wordSize)
     {
         $out = new BitArray();
 
@@ -261,32 +260,32 @@ class Encoder
         return $out;
     }
 
-    public static function generateModeMessage($compact, $layers, $messageSizeInWords)
+    private function generateModeMessage($compact, $layers, $messageSizeInWords)
     {
         $modeMessage = new BitArray();
         if ($compact) {
             $modeMessage->append($layers - 1, 2);
             $modeMessage->append($messageSizeInWords - 1, 6);
-            $modeMessage = self::generateCheckWords($modeMessage, 28, 4);
+            $modeMessage = $this->generateCheckWords($modeMessage, 28, 4);
         } else {
             $modeMessage->append($layers - 1, 5);
             $modeMessage->append($messageSizeInWords - 1, 11);
-            $modeMessage = self::generateCheckWords($modeMessage, 40, 4);
+            $modeMessage = $this->generateCheckWords($modeMessage, 40, 4);
         }
 
         return $modeMessage;
     }
 
-    public static function generateCheckWords(BitArray $stuffedBits, $totalSymbolBits, $wordSize)
+    private function generateCheckWords(BitArray $stuffedBits, $totalSymbolBits, $wordSize)
     {
         $messageSizeInWords = intval(($stuffedBits->getLength() + $wordSize - 1) / $wordSize);
         for ($i = $messageSizeInWords * $wordSize - $stuffedBits->getLength(); $i > 0; $i--) {
             $stuffedBits->append(1);
         }
         $totalSizeInFullWords = intval($totalSymbolBits / $wordSize);
-        $messageWords = self::bitsToWords($stuffedBits, $wordSize, $totalSizeInFullWords);
+        $messageWords = $this->bitsToWords($stuffedBits, $wordSize, $totalSizeInFullWords);
 
-        $rs = new ReedSolomonEncoder(self::getGF($wordSize));
+        $rs = new ReedSolomonEncoder($this->getGF($wordSize));
         $messageWords = $rs->encodePadded($messageWords, $totalSizeInFullWords - $messageSizeInWords);
 
         $startPad = $totalSymbolBits % $wordSize;
@@ -300,7 +299,7 @@ class Encoder
         return $messageBits;
     }
 
-    private static function drawBullsEye(BitMatrix $matrix, $center, $size)
+    private function drawBullsEye(BitMatrix $matrix, $center, $size)
     {
         for ($i = 0; $i < $size; $i += 2) {
             for ($j = $center - $i; $j <= $center + $i; $j++) {
@@ -320,7 +319,7 @@ class Encoder
         return $matrix;
     }
 
-    private static function drawModeMessage(BitMatrix $matrix, $compact, $matrixSize, BitArray $modeMessage)
+    private function drawModeMessage(BitMatrix $matrix, $compact, $matrixSize, BitArray $modeMessage)
     {
         $center = intval($matrixSize / 2);
         if ($compact) {
