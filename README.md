@@ -1,4 +1,4 @@
-# Aztec (ex Metzli) - Work in progress
+# Aztec (a Metzli-fork) - Work in progress
 
 **Aztec** is a PHP library to generate Aztec 2D barcodes.
 
