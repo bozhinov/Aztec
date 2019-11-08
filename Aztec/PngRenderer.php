@@ -45,10 +45,9 @@ class PngRenderer
         return imagecolorallocate($im, $r, $g, $b);
     }
 
-    public function render(\Aztec\Utils\BitMatrix $matrix)
+    public function render(array $matrix, int $width)
     {
         $f = $this->factor;
-		$width = $matrix->getWidth();
         $im = imagecreatetruecolor($width * $f, $width * $f);
         $fg = $this->allocateColor($im, $this->fgColor);
         $bg = $this->allocateColor($im, $this->bgColor);
@@ -57,7 +56,7 @@ class PngRenderer
 
         for ($x = 0; $x < $width; $x++) {
             for ($y = 0; $y < $width; $y++) {
-				$bit = $matrix->get($x, $y);
+				$bit = (isset($matrix[$x][$y])) ? $matrix[$x][$y] : FALSE;
                 if ($bit !== FALSE) {
                     imagefilledrectangle($im, $x * $f, $y * $f, (($x + 1) * $f - 1), (($y + 1) * $f - 1), $fg);
                 }

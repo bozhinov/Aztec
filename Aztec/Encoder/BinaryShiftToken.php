@@ -18,7 +18,7 @@
 
 namespace Aztec\Encoder;
 
-use Aztec\Utils\BitArray;
+use Aztec\BitArray;
 
 class BinaryShiftToken extends Token
 {

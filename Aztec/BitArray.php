@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-namespace Aztec\Utils;
+namespace Aztec;
 
 class BitArray
 {
@@ -37,35 +37,13 @@ class BitArray
 
     public function get($index)
     {
-        $this->checkIndex($index);
-
         return $this->data[$index];
-    }
-
-    public function set($index, $bit = 1)
-    {
-        $this->checkIndex($index);
-        $this->data[$index] = ($bit & 1);
     }
 
     public function append($data, $bits = 1)
     {
         for ($i = $bits - 1; $i >= 0; $i--) {
             $this->data[] = ($data >> $i) & 1;
-        }
-    }
-
-    public function appendBytes($bytes)
-    {
-        for ($i = 0; $i < strlen($bytes); $i++) {
-            $this->append(ord($bytes[$i]), 8);
-        }
-    }
-
-    private function checkIndex($index)
-    {
-        if ($index < 0 || $index >= count($this->data)) {
-            throw new \OutOfRangeException();
         }
     }
 }

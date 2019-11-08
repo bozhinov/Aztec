@@ -37,7 +37,7 @@ class GenericGFPoly
         if (!empty($coefficients)) {
             $this->coefficients = $coefficients;
         } else {
-            $this->coefficients = array(0);
+            $this->coefficients = [0];
         }
     }
 
@@ -136,6 +136,13 @@ class GenericGFPoly
         return new self($this->field, $product);
     }
 
+	private function checkType($number)
+    {
+        if (!is_int($number) && !is_float($number) && !($number instanceof GenericGFPoly)) {
+            throw new \InvalidArgumentException('Non-numbers are not allowed');
+        }
+    }
+
     public function divide(GenericGFPoly $other)
     {
         if ($other->getField() != $this->field) {
@@ -145,7 +152,7 @@ class GenericGFPoly
             throw new \InvalidArgumentException('Divide by 0');
         }
 
-        $quotient = $this->field->getZero();
+      #  $quotient = $this->field->getZero();
         $remainder = $this;
 
         $denominatorLeadingTerm = $other->getCoefficient($other->getDegree());
@@ -155,10 +162,13 @@ class GenericGFPoly
             $scale = $this->field->multiply($remainder->getCoefficient($remainder->getDegree()), $inverseDenominatorLeadingTerm);
             $term = $other->multiplyByMonomial($degreeDifference, $scale);
             $iterationQuotient = $this->field->buildMonomial($degreeDifference, $scale);
-            $quotient = $quotient->addOrSubtract($iterationQuotient);
+           # $quotient = $quotient->addOrSubtract($iterationQuotient);
             $remainder = $remainder->addOrSubtract($term);
         }
 
-        return new DivisionResult($quotient, $remainder);
+		#$this->checkType($quotient);
+		$this->checkType($remainder);
+
+        return $remainder;
     }
 }

@@ -22,19 +22,24 @@ use Aztec\Encoder\DataEncoderInterface;
 use Aztec\Encoder\DynamicDataEncoder;
 use Aztec\ReedSolomon\GenericGF;
 use Aztec\ReedSolomon\ReedSolomonEncoder;
-use Aztec\Utils\BitArray;
-use Aztec\Utils\BitMatrix;
+use Aztec\BitArray;
 
 class Encoder
 {
     private $LAYERS_COMPACT = 5;
     private $LAYERS_FULL = 33;
-
+	private $MATRIX;
+	private $compact = true;
     private $wordSize = [
          4,  6,  6,  8,  8,  8,  8,  8,  8, 10, 10,
         10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
         10, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12,
     ];
+
+	private function mSet($x, $y)
+	{
+		$this->MATRIX[$x][$y] = 1;
+	}
 
     public function encode(string $content, int $eccPercent = 33, $dataEncoder = null)
     {
@@ -65,9 +70,9 @@ class Encoder
                 }
             }
         }
-        $compact = true;
+
         if ($layers == $this->LAYERS_COMPACT) {
-            $compact = false;
+            $this->compact = false;
             for ($layers = 1; $layers < $this->LAYERS_FULL; $layers++) {
                 if ($this->getBitsPerLayer($layers, true) >= $totalSizeBits) {
                     if ($wordSize != $this->wordSize[$layers]) {
@@ -105,13 +110,11 @@ class Encoder
             $messageBits->append($messageWord, $wordSize);
         }
 
-        // generate mode message
-        $modeMessage = $this->generateModeMessage($compact, $layers, $messageSizeInWords);
-
         // allocate symbol
-        if ($compact) {
+        if ($this->compact) {
             $matrixSize = $baseMatrixSize = 11 + $layers * 4;
-            $alignmentMap = array();
+			$center = intval($matrixSize / 2);
+            $alignmentMap = [];
             for ($i = 0; $i < $matrixSize; $i++) {
                 $alignmentMap[] = $i;
             }
@@ -127,11 +130,12 @@ class Encoder
                 $alignmentMap[$origCenter + $i] = $center + $newOffset + 1;
             }
         }
-        $matrix = new BitMatrix($matrixSize);
+
+		$this->MATRIX = [new \SplFixedArray($matrixSize), new \SplFixedArray($matrixSize)];
 
         // draw mode and data bits
         for ($i = 0, $rowOffset = 0; $i < $layers; $i++) {
-            if ($compact) {
+            if ($this->compact) {
                 $rowSize = ($layers - $i) * 4 + 9;
             } else {
                 $rowSize = ($layers - $i) * 4 + 12;
@@ -140,40 +144,128 @@ class Encoder
                 $columnOffset = $j * 2;
                 for ($k = 0; $k < 2; $k++) {
                     if ($messageBits->get($rowOffset + $columnOffset + $k)) {
-                        $matrix->set($alignmentMap[$i * 2 + $k], $alignmentMap[$i * 2 + $j]);
+                         $this->mSet($alignmentMap[$i * 2 + $k], $alignmentMap[$i * 2 + $j]);
                     }
                     if ($messageBits->get($rowOffset + $rowSize * 2 + $columnOffset + $k)) {
-                        $matrix->set($alignmentMap[$i * 2 + $j], $alignmentMap[$baseMatrixSize - 1 - $i * 2 - $k]);
+                         $this->mSet($alignmentMap[$i * 2 + $j], $alignmentMap[$baseMatrixSize - 1 - $i * 2 - $k]);
                     }
                     if ($messageBits->get($rowOffset + $rowSize * 4 + $columnOffset + $k)) {
-                        $matrix->set($alignmentMap[$baseMatrixSize - 1 - $i * 2 - $k], $alignmentMap[$baseMatrixSize - 1 - $i * 2 - $j]);
+                         $this->mSet($alignmentMap[$baseMatrixSize - 1 - $i * 2 - $k], $alignmentMap[$baseMatrixSize - 1 - $i * 2 - $j]);
                     }
                     if ($messageBits->get($rowOffset + $rowSize * 6 + $columnOffset + $k)) {
-                        $matrix->set($alignmentMap[$baseMatrixSize - 1 - $i * 2 - $j], $alignmentMap[$i * 2 + $k]);
+                         $this->mSet($alignmentMap[$baseMatrixSize - 1 - $i * 2 - $j], $alignmentMap[$i * 2 + $k]);
                     }
                 }
             }
             $rowOffset += $rowSize * 8;
         }
 
-        $matrix = $this->drawModeMessage($matrix, $compact, $matrixSize, $modeMessage);
+        $this->drawModeMessage($center, $layers, $messageSizeInWords);
 
         // draw alignment marks
-        if ($compact) {
-            $matrix = $this->drawBullsEye($matrix, intval($matrixSize / 2), 5);
+        if ($this->compact) {
+            $this->drawBullsEye($center, 5);
         } else {
-            $matrix = $this->drawBullsEye($matrix, intval($matrixSize / 2), 7);
+            $this->drawBullsEye($center, 7);
             for ($i = 0, $j = 0; $i < intval($baseMatrixSize / 2) - 1; $i += 15, $j += 16) {
-                for ($k = intval($matrixSize / 2) & 1; $k < $matrixSize; $k += 2) {
-                    $matrix->set(intval($matrixSize / 2) - $j, $k);
-                    $matrix->set(intval($matrixSize / 2) + $j, $k);
-                    $matrix->set($k, intval($matrixSize / 2) - $j);
-                    $matrix->set($k, intval($matrixSize / 2) + $j);
+                for ($k = $center & 1; $k < $matrixSize; $k += 2) {
+                    $this->mSet($center - $j, $k);
+                    $this->mSet($center + $j, $k);
+                    $this->mSet($k, $center - $j);
+                    $this->mSet($k, $center + $j);
                 }
             }
         }
 
-        return $matrix;
+        return [$this->MATRIX, $matrixSize];
+    }
+
+    private function drawBullsEye($center, $size)
+    {
+        for ($i = 0; $i < $size; $i += 2) {
+            for ($j = $center - $i; $j <= $center + $i; $j++) {
+                $this->mSet($j, $center - $i);
+                $this->mSet($j, $center + $i);
+                $this->mSet($center - $i, $j);
+                $this->mSet($center + $i, $j);
+            }
+        }
+        $this->mSet($center - $size, $center - $size);
+        $this->mSet($center - $size + 1, $center - $size);
+        $this->mSet($center - $size, $center - $size + 1);
+        $this->mSet($center + $size, $center - $size);
+        $this->mSet($center + $size, $center - $size + 1);
+        $this->mSet($center + $size, $center + $size - 1);
+    }
+
+    private function drawModeMessage($center, $layers, $messageSizeInWords)
+    {
+		 // generate mode message
+        $modeMessage = new BitArray();
+        if ($this->compact) {
+            $modeMessage->append($layers - 1, 2);
+            $modeMessage->append($messageSizeInWords - 1, 6);
+            $modeMessage = $this->generateCheckWords($modeMessage, 28, 4);
+        } else {
+            $modeMessage->append($layers - 1, 5);
+            $modeMessage->append($messageSizeInWords - 1, 11);
+            $modeMessage = $this->generateCheckWords($modeMessage, 40, 4);
+        }
+
+        if ($this->compact) {
+            for ($i = 0; $i < 7; $i++) {
+                if ($modeMessage->get($i)) {
+                    $this->mSet($center - 3 + $i, $center - 5);
+                }
+                if ($modeMessage->get($i + 7)) {
+                    $this->mSet($center + 5, $center - 3 + $i);
+                }
+                if ($modeMessage->get(20 - $i)) {
+                    $this->mSet($center - 3 + $i, $center + 5);
+                }
+                if ($modeMessage->get(27 - $i)) {
+                    $this->mSet($center - 5, $center - 3 + $i);
+                }
+            }
+        } else {
+            for ($i = 0; $i < 10; $i++) {
+                if ($modeMessage->get($i)) {
+                    $this->mSet($center - 5 + $i + intval($i / 5), $center - 7);
+                }
+                if ($modeMessage->get($i + 10)) {
+                    $this->mSet($center + 7, $center - 5 + $i + intval($i / 5));
+                }
+                if ($modeMessage->get(29 - $i)) {
+                    $this->mSet($center - 5 + $i + intval($i / 5), $center + 7);
+                }
+                if ($modeMessage->get(39 - $i)) {
+                    $this->mSet($center - 7, $center - 5 + $i + intval($i / 5));
+                }
+            }
+        }
+    }
+
+	private function generateCheckWords(BitArray $stuffedBits, $totalSymbolBits, $wordSize)
+    {
+        $messageSizeInWords = intval(($stuffedBits->getLength() + $wordSize - 1) / $wordSize);
+        for ($i = $messageSizeInWords * $wordSize - $stuffedBits->getLength(); $i > 0; $i--) {
+            $stuffedBits->append(1);
+        }
+        $totalSizeInFullWords = intval($totalSymbolBits / $wordSize);
+        $messageWords = $this->bitsToWords($stuffedBits, $wordSize, $totalSizeInFullWords);
+
+        $rs = new ReedSolomonEncoder($this->getGF($wordSize));
+        $messageWords = $rs->encodePadded($messageWords, $totalSizeInFullWords - $messageSizeInWords);
+
+        $startPad = $totalSymbolBits % $wordSize;
+        $messageBits = new BitArray();
+        $messageBits->append(0, $startPad);
+
+        foreach ($messageWords as $messageWord) {
+            $messageBits->append($messageWord, $wordSize);
+        }
+
+        return $messageBits;
     }
 
     private function getBitsPerLayer($layer, $full = true)
@@ -258,102 +350,5 @@ class Encoder
         }
 
         return $out;
-    }
-
-    private function generateModeMessage($compact, $layers, $messageSizeInWords)
-    {
-        $modeMessage = new BitArray();
-        if ($compact) {
-            $modeMessage->append($layers - 1, 2);
-            $modeMessage->append($messageSizeInWords - 1, 6);
-            $modeMessage = $this->generateCheckWords($modeMessage, 28, 4);
-        } else {
-            $modeMessage->append($layers - 1, 5);
-            $modeMessage->append($messageSizeInWords - 1, 11);
-            $modeMessage = $this->generateCheckWords($modeMessage, 40, 4);
-        }
-
-        return $modeMessage;
-    }
-
-    private function generateCheckWords(BitArray $stuffedBits, $totalSymbolBits, $wordSize)
-    {
-        $messageSizeInWords = intval(($stuffedBits->getLength() + $wordSize - 1) / $wordSize);
-        for ($i = $messageSizeInWords * $wordSize - $stuffedBits->getLength(); $i > 0; $i--) {
-            $stuffedBits->append(1);
-        }
-        $totalSizeInFullWords = intval($totalSymbolBits / $wordSize);
-        $messageWords = $this->bitsToWords($stuffedBits, $wordSize, $totalSizeInFullWords);
-
-        $rs = new ReedSolomonEncoder($this->getGF($wordSize));
-        $messageWords = $rs->encodePadded($messageWords, $totalSizeInFullWords - $messageSizeInWords);
-
-        $startPad = $totalSymbolBits % $wordSize;
-        $messageBits = new BitArray();
-        $messageBits->append(0, $startPad);
-
-        foreach ($messageWords as $messageWord) {
-            $messageBits->append($messageWord, $wordSize);
-        }
-
-        return $messageBits;
-    }
-
-    private function drawBullsEye(BitMatrix $matrix, $center, $size)
-    {
-        for ($i = 0; $i < $size; $i += 2) {
-            for ($j = $center - $i; $j <= $center + $i; $j++) {
-                $matrix->set($j, $center - $i);
-                $matrix->set($j, $center + $i);
-                $matrix->set($center - $i, $j);
-                $matrix->set($center + $i, $j);
-            }
-        }
-        $matrix->set($center - $size, $center - $size);
-        $matrix->set($center - $size + 1, $center - $size);
-        $matrix->set($center - $size, $center - $size + 1);
-        $matrix->set($center + $size, $center - $size);
-        $matrix->set($center + $size, $center - $size + 1);
-        $matrix->set($center + $size, $center + $size - 1);
-
-        return $matrix;
-    }
-
-    private function drawModeMessage(BitMatrix $matrix, $compact, $matrixSize, BitArray $modeMessage)
-    {
-        $center = intval($matrixSize / 2);
-        if ($compact) {
-            for ($i = 0; $i < 7; $i++) {
-                if ($modeMessage->get($i)) {
-                    $matrix->set($center - 3 + $i, $center - 5);
-                }
-                if ($modeMessage->get($i + 7)) {
-                    $matrix->set($center + 5, $center - 3 + $i);
-                }
-                if ($modeMessage->get(20 - $i)) {
-                    $matrix->set($center - 3 + $i, $center + 5);
-                }
-                if ($modeMessage->get(27 - $i)) {
-                    $matrix->set($center - 5, $center - 3 + $i);
-                }
-            }
-        } else {
-            for ($i = 0; $i < 10; $i++) {
-                if ($modeMessage->get($i)) {
-                    $matrix->set($center - 5 + $i + intval($i / 5), $center - 7);
-                }
-                if ($modeMessage->get($i + 10)) {
-                    $matrix->set($center + 7, $center - 5 + $i + intval($i / 5));
-                }
-                if ($modeMessage->get(29 - $i)) {
-                    $matrix->set($center - 5 + $i + intval($i / 5), $center + 7);
-                }
-                if ($modeMessage->get(39 - $i)) {
-                    $matrix->set($center - 7, $center - 5 + $i + intval($i / 5));
-                }
-            }
-        }
-
-        return $matrix;
     }
 }

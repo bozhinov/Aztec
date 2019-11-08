@@ -26,8 +26,8 @@ class ReedSolomonEncoder
     public function __construct(GenericGF $field)
     {
         $this->field = $field;
-        $this->cachedGenerators = array();
-        $this->cachedGenerators[] = new GenericGFPoly($field, array(1));
+        $this->cachedGenerators = [];
+        $this->cachedGenerators[] = new GenericGFPoly($field, [1]);
     }
 
     private function buildGenerator($degree)
@@ -36,7 +36,7 @@ class ReedSolomonEncoder
             $lastGenerator = end($this->cachedGenerators);
             for ($d = count($this->cachedGenerators); $d <= $degree; $d++) {
                 $nextCoefficent = $this->field->exp($d - 1 + $this->field->getGeneratorBase());
-                $nextGenerator = $lastGenerator->multiply(new GenericGFPoly($this->field, array(1, $nextCoefficent)));
+                $nextGenerator = $lastGenerator->multiply(new GenericGFPoly($this->field, [1, $nextCoefficent]));
                 $this->cachedGenerators[] = $nextGenerator;
                 $lastGenerator = $nextGenerator;
             }
@@ -58,7 +58,7 @@ class ReedSolomonEncoder
         $info = new GenericGFPoly($this->field, $data);
         $info = $info->multiplyByMonomial($ecBytes, 1);
 
-        $remainder = $info->divide($generator)->getRemainder();
+        $remainder = $info->divide($generator);
         $coefficients = $remainder->getCoefficients();
         $paddedCoefficients = array_pad($coefficients, -$ecBytes, 0);
 

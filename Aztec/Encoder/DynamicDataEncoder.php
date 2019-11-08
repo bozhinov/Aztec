@@ -34,9 +34,10 @@ class DynamicDataEncoder implements DataEncoderInterface
     public function encode($data)
     {
         $text = str_split($data);
+		$textCount = count($text);
         $states = [State::createInitialState()];
-        for ($index = 0; $index < count($text); $index++) {
-            $nextChar = (($index + 1 < count($text)) ? $text[$index + 1] : '');
+        for ($index = 0; $index < $textCount; $index++) {
+            $nextChar = (($index + 1 != $textCount) ? $text[$index + 1] : '');
             switch ($text[$index]) {
                 case '\r':
                     $pairCode = (($nextChar == '\n') ? 2 : 0);
@@ -74,7 +75,7 @@ class DynamicDataEncoder implements DataEncoderInterface
 
     private static function updateStateListForChar(array $states, $index, $text)
     {
-        $result = array();
+        $result = [];
         foreach ($states as $state) {
             $result = self::updateStateForChar($state, $index, $text, $result);
         }
@@ -82,7 +83,7 @@ class DynamicDataEncoder implements DataEncoderInterface
         return self::simplifyStates($result);
     }
 
-    private static function updateStateForChar(State $state, $index, $text, $result = array())
+    private static function updateStateForChar(State $state, $index, $text, $result = [])
     {
         $ch = $text[$index];
         $charInCurrentTable = (self::getCharMapping($state->getMode(), $ch) > 0);
@@ -118,7 +119,7 @@ class DynamicDataEncoder implements DataEncoderInterface
         return self::simplifyStates($result);
     }
 
-    private static function updateStateForPair(State $state, $index, $pairCode, $result = array())
+    private static function updateStateForPair(State $state, $index, $pairCode, $result = [])
     {
         $stateNoBinary = $state->endBinaryShift($index);
 

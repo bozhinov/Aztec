@@ -18,11 +18,11 @@
 
 namespace Aztec\Encoder;
 
-use Aztec\Utils\BitArray;
+use Aztec\BitArray;
 
 class BinaryDataEncoder implements DataEncoderInterface
 {
-    const CODE_UPPER_BS = 31;
+    private $CODE_UPPER_BS = 31;
 
     public function encode($data)
     {
@@ -30,17 +30,23 @@ class BinaryDataEncoder implements DataEncoderInterface
 
         while (strlen($data) >= 32) {
             $chunkLength = min(strlen($data), (2048 + 32 - 1));
-            $result->append(self::CODE_UPPER_BS, 5);
+            $result->append($this->CODE_UPPER_BS, 5);
             $result->append(0, 5);
             $result->append(($chunkLength - 32), 11);
-            $result->appendBytes(substr($data, 0, $chunkLength));
+			$bytes = substr($data, 0, $chunkLength);
+			for ($i = 0; $i < $chunkLength; $i++) {
+				$result->append(ord($bytes[$i]), 8);
+			}
             $data = substr($data, $chunkLength);
         }
 
         if (strlen($data) > 0) {
-            $result->append(self::CODE_UPPER_BS, 5);
-            $result->append(strlen($data), 5);
-            $result->appendBytes($data);
+            $result->append($this->CODE_UPPER_BS, 5);
+			$len = strlen($data);
+            $result->append($len, 5);
+			for ($i = 0; $i < $len; $i++) {
+				$result->append(ord($data[$i]), 8);
+			}
         }
 
         return $result;

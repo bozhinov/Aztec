@@ -5,11 +5,8 @@ require_once("bootstrap.php");
 use Aztec\Encoder;
 use Aztec\PngRenderer;
 
-// ... some awesome code here ...
+list($code, $width) = (new Encoder())->encode('Hello World!');
 
-$code = Encoder::encode('Hello World!');
-$renderer = new PngRenderer();
-
-file_put_contents("temp/example.basic.png", $renderer->render($code));
+file_put_contents("temp/example.basic.png", (new PngRenderer())->render($code, $width));
 
 ?>
