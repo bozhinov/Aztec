@@ -18,24 +18,128 @@
 
 namespace Aztec\Encoder;
 
+use Aztec\BitArray;
+
 class DynamicDataEncoder implements DataEncoderInterface
 {
-    const MODE_UPPER = 0;
-    const MODE_LOWER = 1;
-    const MODE_DIGIT = 2;
-    const MODE_MIXED = 3;
-    const MODE_PUNCT = 4;
+	private $charMap;
+	private $shiftTable;
+    private $latchTable;
 
-    private static $shiftTable = null;
-    private static $latchTable = null;
-    private static $charMap = null;
-    private static $modeNames = ['UPPER', 'LOWER', 'DIGIT', 'MIXED', 'PUNCT'];
+	private $MODE_UPPER = 0;
+    private $MODE_LOWER = 1;
+    private $MODE_DIGIT = 2;
+    private $MODE_MIXED = 3;
+    private $MODE_PUNCT = 4;
+
+	function __construct()
+	{
+		$this->charMap = $this->genCharMapping();
+		$this->shiftTable = $this->genShiftTable();
+		$this->latchTable = [
+				[0,327708,327710,327709,656318],
+				[590318,0,327710,327709,656318],
+				[262158,590300,0,590301,932798],
+				[327709,327708,656318,0,327710],
+				[327711,656380,656382,656381,0]
+			];
+	}
+
+	private function genShiftTable()
+	{
+		$shiftTable = [];
+		for ($i = 0; $i < 6; $i++) {
+			$shiftTable[] = array_fill(0, 6, -1);
+		}
+		$shiftTable[0][4] = 0;
+		$shiftTable[1][4] = 0;
+		$shiftTable[1][0] = 28;
+		$shiftTable[3][4] = 0;
+		$shiftTable[2][4] = 0;
+		$shiftTable[2][0] = 15;
+
+		return $shiftTable;
+	}
+
+    private function getLatch($fromMode, $toMode)
+    {
+        return $this->latchTable[$fromMode][$toMode];
+    }
+
+    private function getShift($fromMode, $toMode)
+    {
+        return $this->shiftTable[$fromMode][$toMode];
+    }
+
+	private function genCharMapping()
+	{
+		$charMap = [];
+		for ($i = 0; $i < 5; $i++) {
+			$charMap[] = array_fill(0, 256, 0);
+		}
+
+		# ord(' ') = 32
+		# ord('A') = 65
+		# ord('Z') = 90
+		# ord('a') = 97
+		# ord('z') = 122
+		# ord('0') = 48
+		# ord('9') = 57
+		# ord(',') = 44
+		# ord('.') = 46
+
+		$charMap[0][32] = 1;
+		for ($c = 65; $c <= 90; $c++) {
+			$charMap[0][$c] = ($c - 65 + 2);
+		}
+
+		$charMap[1][32] = 1;
+		for ($c = 97; $c <= 122; $c++) {
+			$charMap[1][$c] = ($c - 97 + 2);
+		}
+
+		$charMap[2][32] = 1;
+		for ($c = 48; $c <= 57; $c++) {
+			$charMap[2][$c] = ($c - 48 + 2);
+		}
+		$charMap[2][44] = 12;
+		$charMap[2][46] = 13;
+
+		$mixedTable = [
+			'\0', ' ', '\1', '\2', '\3', '\4', '\5', '\6', '\7', '\b', '\t', '\n',
+			'\13', '\f', '\r', '\33', '\34', '\35', '\36', '\37', '@', '\\', '^',
+			'_', '`', '|', '~', '\177',
+		];
+		for ($i = 0; $i < 28; $i++) {
+			$charMap[3][ord($mixedTable[$i])] = $i;
+		}
+
+		$punctTable = [
+			'\0', '\r', '\0', '\0', '\0', '\0', '!', '\'', '#', '$', '%', '&', '\'',
+			'(', ')', '*', '+', ',', '-', '.', '/', ':', ';', '<', '=', '>', '?',
+			'[', ']', '{', '}',
+		];
+		for ($i = 0; $i < 31; $i++) {
+			#if (ord($punctTable[$i]) > 0) {
+				$charMap[4][ord($punctTable[$i])] = $i;
+			#}
+		}
+
+		return $charMap;
+	}
+
+	private function getCharMapping($char, $mode)
+    {
+        return $this->charMap[$mode][ord($char)];
+    }
 
     public function encode($data)
     {
         $text = str_split($data);
 		$textCount = count($text);
-        $states = [State::createInitialState()];
+		$token = new SimpleToken(null, 0, 0, 0);
+		$token->setState(0,0,0);
+        $states = [$token];
         for ($index = 0; $index < $textCount; $index++) {
             $nextChar = (($index + 1 != $textCount) ? $text[$index + 1] : '');
             switch ($text[$index]) {
@@ -56,10 +160,10 @@ class DynamicDataEncoder implements DataEncoderInterface
                     break;
             }
             if ($pairCode > 0) {
-                $states = self::updateStateListForPair($states, $index, $pairCode);
+                $states = $this->updateStateListForPair($states, $index, $pairCode);
                 $index++;
             } else {
-                $states = self::updateStateListForChar($states, $index, $text);
+                $states = $this->updateStateListForChar($states, $index, $text);
             }
         }
 
@@ -70,84 +174,74 @@ class DynamicDataEncoder implements DataEncoderInterface
             }
         }
 
-        return $minState->toBitArray($text);
+        return $this->toBitArray($minState, $text);
     }
 
-    private static function updateStateListForChar(array $states, $index, $text)
+    private function updateStateListForChar(array $states, $index, $text)
+    {
+        $result = [];
+		$ch = $text[$index];
+
+        foreach ($states as $state) {
+			$charInCurrentTable = ($this->getCharMapping($ch, $state->getMode()) > 0);
+			$stateNoBinary = null;
+			for ($mode = 0; $mode <= 4; $mode++) {
+				$charInMode = $this->getCharMapping($ch, $mode);
+				if ($charInMode > 0) {
+					if ($stateNoBinary === null) {
+						$stateNoBinary = $this->endBinaryShift($state, $index);
+					}
+					if (!$charInCurrentTable || $mode == $state->getMode() || $mode == 2) {
+						
+						$result[] = $this->latchAndAppend($stateNoBinary, $mode, $charInMode);
+					}
+					if (!$charInCurrentTable && $this->getShift($state->getMode(), $mode) >= 0) {
+						$result[] = $this->shiftAndAppend($stateNoBinary, $mode, $charInMode);
+					}
+				}
+			}
+			if ($state->getBinaryShiftByteCount() > 0 || $this->getCharMapping($ch, $state->getMode()) == 0) {
+				$result[] = $this->addBinaryShiftChar($state, $index);
+			}
+        }
+
+        return $this->simplifyStates($result);
+    }
+
+    private function updateStateListForPair(array $states, $index, $pairCode)
     {
         $result = [];
         foreach ($states as $state) {
-            $result = self::updateStateForChar($state, $index, $text, $result);
+			$stateNoBinary = $this->endBinaryShift($state, $index);
+
+			$result[] = $this->latchAndAppend($stateNoBinary, 4, $pairCode);
+			if ($state->getMode() != 4) {
+				$result[] = $this->shiftAndAppend($stateNoBinary, 4, $pairCode);
+			}
+			if ($pairCode == 3 || $pairCode == 4) {
+				$interm = $this->latchAndAppend($stateNoBinary, 2, 16 - $pairCode);
+				$result[] = $this->latchAndAppend($interm, 2, 1);
+			}
+			if ($state->getBinaryShiftByteCount() > 0) {
+				$interm = $this->addBinaryShiftChar($state, $index);
+				$result[] = $this->addBinaryShiftChar($interm + 1);
+			}
         }
 
-        return self::simplifyStates($result);
+        return $this->simplifyStates($result);
     }
 
-    private static function updateStateForChar(State $state, $index, $text, $result = [])
-    {
-        $ch = $text[$index];
-        $charInCurrentTable = (self::getCharMapping($state->getMode(), $ch) > 0);
-        $stateNoBinary = null;
-        for ($mode = 0; $mode <= self::MODE_PUNCT; $mode++) {
-            $charInMode = self::getCharMapping($mode, $ch);
-            if ($charInMode > 0) {
-                if ($stateNoBinary === null) {
-                    $stateNoBinary = $state->endBinaryShift($index);
-                }
-                if (!$charInCurrentTable || $mode == $state->getMode() || $mode == self::MODE_DIGIT) {
-                    $result[] = $stateNoBinary->latchAndAppend($mode, $charInMode);
-                }
-                if (!$charInCurrentTable && self::getShift($state->getMode(), $mode) >= 0) {
-                    $result[] = $stateNoBinary->shiftAndAppend($mode, $charInMode);
-                }
-            }
-        }
-        if ($state->getBinaryShiftByteCount() > 0 || self::getCharMapping($state->getMode(), $ch) == 0) {
-            $result[] = $state->addBinaryShiftChar($index);
-        }
-
-        return $result;
-    }
-
-    private static function updateStateListForPair(array $states, $index, $pairCode)
-    {
-        $result = [];
-        foreach ($states as $state) {
-            $result = self::updateStateForPair($state, $index, $pairCode, $result);
-        }
-
-        return self::simplifyStates($result);
-    }
-
-    private static function updateStateForPair(State $state, $index, $pairCode, $result = [])
-    {
-        $stateNoBinary = $state->endBinaryShift($index);
-
-        $result[] = $stateNoBinary->latchAndAppend(self::MODE_PUNCT, $pairCode);
-        if ($state->getMode() != self::MODE_PUNCT) {
-            $result[] = $stateNoBinary->shiftAndAppend(self::MODE_PUNCT, $pairCode);
-        }
-        if ($pairCode == 3 || $pairCode == 4) {
-            $result[] = $stateNoBinary->latchAndAppend(self::MODE_DIGIT, 16 - $pairCode)->latchAndAppend(self::MODE_DIGIT, 1);
-        }
-        if ($state->getBinaryShiftByteCount() > 0) {
-            $result[] = $state->addBinaryShiftChar($index)->addBinaryShiftChar($index + 1);
-        }
-
-        return $result;
-    }
-
-    private static function simplifyStates(array $states)
+    private function simplifyStates(array $states)
     {
         $result = [];
         foreach ($states as $newState) {
             $add = true;
             for ($i = 0; $i < count($result); $i++) {
-                if ($result[$i]->isBetterThanOrEqualTo($newState)) {
+                if ($this->isBetterThanOrEqualTo($result[$i], $newState)) {
                     $add = false;
                     break;
                 }
-                if ($newState->isBetterThanOrEqualTo($result[$i])) {
+                if ($this->isBetterThanOrEqualTo($newState, $result[$i])) {
                     unset($result[$i]);
                     $result = array_values($result);
                     $i--;
@@ -161,118 +255,105 @@ class DynamicDataEncoder implements DataEncoderInterface
         return $result;
     }
 
-    public static function getModeName($mode)
+    private function isBetterThanOrEqualTo($one, $other)
     {
-        return self::$modeNames[$mode];
-    }
-
-    public static function getLatch($fromMode, $toMode)
-    {
-        if (null === self::$latchTable) {
-            self::$latchTable = [
-                [
-                    0,
-                    (5 << 16) + 28,                           // UPPER -> LOWER
-                    (5 << 16) + 30,                           // UPPER -> DIGIT
-                    (5 << 16) + 29,                           // UPPER -> MIXED
-                    (10 << 16) + (29 << 5) + 30,              // UPPER -> MIXED -> PUNCT
-                ], [
-                    (9 << 16) + (30 << 4) + 14,               // LOWER -> DIGIT -> UPPER
-                    0,
-                    (5 << 16) + 30,                           // LOWER -> DIGIT
-                    (5 << 16) + 29,                           // LOWER -> MIXED
-                    (10 << 16) + (29 << 5) + 30,              // LOWER -> MIXED -> PUNCT
-                ], [
-                    (4 << 16) + 14,                           // DIGIT -> UPPER
-                    (9 << 16) + (14 << 5) + 28,               // DIGIT -> UPPER -> LOWER
-                    0,
-                    (9 << 16) + (14 << 5) + 29,               // DIGIT -> UPPER -> MIXED
-                    (14 << 16) + (14 << 10) + (29 << 5) + 30, // DIGIT -> UPPER -> MIXED -> PUNCT
-                ], [
-                    (5 << 16) + 29,                           // MIXED -> UPPER
-                    (5 << 16) + 28,                           // MIXED -> LOWER
-                    (10 << 16) + (29 << 5) + 30,              // MIXED -> UPPER -> DIGIT
-                    0,
-                    (5 << 16) + 30,                           // MIXED -> PUNCT
-                ], [
-                    (5 << 16) + 31,                           // PUNCT -> UPPER
-                    (10 << 16) + (31 << 5) + 28,              // PUNCT -> UPPER -> LOWER
-                    (10 << 16) + (31 << 5) + 30,              // PUNCT -> UPPER -> DIGIT
-                    (10 << 16) + (31 << 5) + 29,              // PUNCT -> UPPER -> MIXED
-                    0,
-                ],
-            ];
+        $mySize = $one->getBitCount() + ($this->getLatch($one->getMode(), $other->getMode()) >> 16);
+        if ($other->getBinaryShiftByteCount() > 0 && ($one->getBinaryShiftByteCount() == 0 || $one->getBinaryShiftByteCount() > $other->getBinaryShiftByteCount())) {
+            $mySize += 10;
         }
 
-        return self::$latchTable[$fromMode][$toMode];
+        return $mySize <= $other->getBitCount();
     }
 
-    public static function getShift($fromMode, $toMode)
+    private function shiftAndAppend($token, $mode, $value)
     {
-        if (null === self::$shiftTable) {
-            self::$shiftTable = [];
-            for ($i = 0; $i < 6; $i++) {
-                self::$shiftTable[] = array_fill(0, 6, -1);
-            }
-            self::$shiftTable[self::MODE_UPPER][self::MODE_PUNCT] = 0;
-            self::$shiftTable[self::MODE_LOWER][self::MODE_PUNCT] = 0;
-            self::$shiftTable[self::MODE_LOWER][self::MODE_UPPER] = 28;
+		$current_mode = $token->getMode();
+        $thisModeBitCount = ($current_mode == $this->MODE_DIGIT ? 4 : 5);
+        $token = $token->add($this->getShift($current_mode, $mode), $thisModeBitCount);
+        $token = $token->add($value, 5);
+		$bitCount = $token->getBitCount();
+        $token->setState($current_mode, 0, $bitCount + $thisModeBitCount + 5);
 
-            self::$shiftTable[self::MODE_MIXED][self::MODE_PUNCT] = 0;
+		return $token;
+    }
+	
+	private function latchAndAppend($token, $mode, $value)
+    {
+        $bitCount = $token->getBitCount();
+		$current_mode = $token->getMode();
 
-            self::$shiftTable[self::MODE_DIGIT][self::MODE_PUNCT] = 0;
-            self::$shiftTable[self::MODE_DIGIT][self::MODE_UPPER] = 15;
+        if ($mode != $current_mode) {
+            $latch = $this->getLatch($current_mode, $mode);
+            $token = $token->add(($latch & 0xFFFF), ($latch >> 16));
+            $bitCount += ($latch >> 16);
+        }
+        $latchModeBitCount = ($mode == $this->MODE_DIGIT ? 4 : 5);
+        $token = $token->add($value, $latchModeBitCount);
+
+        $token->setState($mode, 0, $bitCount + $latchModeBitCount);
+		return $token;
+    }
+
+	private function addBinaryShiftChar($token, $index)
+    {
+        $current_mode = $token->getMode();
+        $bitCount = $token->getBitCount();
+
+        if ($current_mode == $this->MODE_PUNCT || $current_mode == $this->MODE_DIGIT) {
+            $latch = $this->getLatch($current_mode, $this->MODE_UPPER);
+            $token = $token->add(($latch & 0xFFFF), ($latch >> 16));
+            $bitCount += ($latch >> 16);
+            $current_mode = $this->MODE_UPPER;
         }
 
-        return self::$shiftTable[$fromMode][$toMode];
-    }
-
-    public static function getCharMapping($mode, $char)
-    {
-        if (null === self::$charMap) {
-            self::$charMap = [];
-            for ($i = 0; $i < 5; $i++) {
-                self::$charMap[] = array_fill(0, 256, 0);
-            }
-
-            self::$charMap[self::MODE_UPPER][ord(' ')] = 1;
-            for ($c = ord('A'); $c <= ord('Z'); $c++) {
-                self::$charMap[self::MODE_UPPER][$c] = ($c - ord('A') + 2);
-            }
-
-            self::$charMap[self::MODE_LOWER][ord(' ')] = 1;
-            for ($c = ord('a'); $c <= ord('z'); $c++) {
-                self::$charMap[self::MODE_LOWER][$c] = ($c - ord('a') + 2);
-            }
-
-            self::$charMap[self::MODE_DIGIT][ord(' ')] = 1;
-            for ($c = ord('0'); $c <= ord('9'); $c++) {
-                self::$charMap[self::MODE_DIGIT][$c] = ($c - ord('0') + 2);
-            }
-            self::$charMap[self::MODE_DIGIT][ord(',')] = 12;
-            self::$charMap[self::MODE_DIGIT][ord('.')] = 13;
-
-            $mixedTable = [
-                '\0', ' ', '\1', '\2', '\3', '\4', '\5', '\6', '\7', '\b', '\t', '\n',
-                '\13', '\f', '\r', '\33', '\34', '\35', '\36', '\37', '@', '\\', '^',
-                '_', '`', '|', '~', '\177',
-            ];
-            for ($i = 0; $i < count($mixedTable); $i++) {
-                self::$charMap[self::MODE_MIXED][ord($mixedTable[$i])] = $i;
-            }
-
-            $punctTable = [
-                '\0', '\r', '\0', '\0', '\0', '\0', '!', '\'', '#', '$', '%', '&', '\'',
-                '(', ')', '*', '+', ',', '-', '.', '/', ':', ';', '<', '=', '>', '?',
-                '[', ']', '{', '}',
-            ];
-            for ($i = 0; $i < count($punctTable); $i++) {
-                if (ord($punctTable[$i]) > 0) {
-                    self::$charMap[self::MODE_PUNCT][ord($punctTable[$i])] = $i;
-                }
-            }
+		$shiftByteCount = $token->getBinaryShiftByteCount();
+        if ($shiftByteCount == 0 || $shiftByteCount == 31) {
+            $deltaBitCount = 18;
+        } elseif ($shiftByteCount == 62) {
+            $deltaBitCount = 9;
+        } else {
+            $deltaBitCount = 8;
+        }
+        $token->setState($current_mode, $shiftByteCount + 1, $bitCount + $deltaBitCount);
+        if ($shiftByteCount + 1 == (2047 + 31)) {
+            $token = $this->endBinaryShift($token, $index + 1);
         }
 
-        return self::$charMap[$mode][ord($char)];
+        return $token;
     }
+
+    private function endBinaryShift($token, $index)
+    {
+		$shiftByteCount = $token->getBinaryShiftByteCount();
+        if ($shiftByteCount == 0) {
+            return $token;
+        }
+
+		$mode = $token->getMode();
+		$bitCount = $token->getBitCount();
+		
+        $token = $token->addBinaryShift($index - $shiftByteCount, $shiftByteCount);
+
+        $token->setState($mode, 0, $bitCount);
+
+		return $token;
+    }
+
+    private function toBitArray($token, array $text)
+    {
+        $symbols = [];
+        $token = $this->endBinaryShift($token, count($text));
+        while ($token !== null) {
+            array_unshift($symbols, $token);
+            $token = $token->getPrevious();
+        }
+
+        $bitArray = new BitArray();
+        foreach ($symbols as $symbol) {
+            $bitArray = $symbol->appendTo($bitArray, $text);
+        }
+
+        return $bitArray;
+    }
+
 }

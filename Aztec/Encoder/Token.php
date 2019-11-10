@@ -25,10 +25,48 @@ abstract class Token
     private $previous;
     private $totalBitCount;
 
+    private $mode = NULL;
+    private $shiftByteCount = NULL;
+    private $bitCount = NULL;
+
     public function __construct(Token $previous = null, $totalBitCount)
     {
         $this->previous = $previous;
         $this->totalBitCount = $totalBitCount;
+    }
+	
+	public function setState($mode, $binaryBytes, $bitCount)
+	{
+        $this->mode = $mode;
+        $this->shiftByteCount = $binaryBytes;
+        $this->bitCount = $bitCount;
+	}
+
+    public function getMode()
+    {
+		if (is_null($this->mode)){
+			debug_print_backtrace();
+			die();
+		}
+        return $this->mode;
+    }
+
+    public function getBinaryShiftByteCount()
+    {
+		if (is_null($this->shiftByteCount)){
+			debug_print_backtrace();
+			die();
+		}
+        return $this->shiftByteCount;
+    }
+
+    public function getBitCount()
+    {
+		if (is_null($this->bitCount)){
+			debug_print_backtrace();
+			die();
+		}
+        return $this->bitCount;
     }
 
     final public function getPrevious()
@@ -43,7 +81,9 @@ abstract class Token
 
     final public function add($value, $bitCount)
     {
-        return new SimpleToken($this, $this->totalBitCount + $bitCount, $value, $bitCount);
+        $token = new SimpleToken($this, $this->totalBitCount + $bitCount, $value, $bitCount);
+		$token->setState($this->mode, $this->shiftByteCount, $this->bitCount);
+		return $token;
     }
 
     final public function addBinaryShift($start, $byteCount)
@@ -58,11 +98,6 @@ abstract class Token
         }
 
         return new BinaryShiftToken($this, $this->totalBitCount + $bitCount, $start, $byteCount);
-    }
-
-    final public static function createEmpty()
-    {
-        return new SimpleToken(null, 0, 0, 0);
     }
 
     abstract public function appendTo(BitArray $bitArray, array $text);
