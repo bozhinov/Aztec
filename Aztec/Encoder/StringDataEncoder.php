@@ -18,7 +18,7 @@
 
 namespace Aztec\Encoder;
 
-class StringDataEncoder extends BinaryDataEncoder
+class StringDataEncoder
 {
     public function encode($data)
     {

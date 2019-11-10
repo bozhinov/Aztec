@@ -20,7 +20,7 @@ namespace Aztec\Encoder;
 
 use Aztec\BitArray;
 
-class BinaryDataEncoder implements DataEncoderInterface
+class BinaryDataEncoder
 {
     private $CODE_UPPER_BS = 31;
 

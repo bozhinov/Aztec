@@ -20,7 +20,7 @@ namespace Aztec\Encoder;
 
 use Aztec\BitArray;
 
-class DynamicDataEncoder implements DataEncoderInterface
+class DynamicDataEncoder
 {
 	private $charMap;
 	private $shiftTable;
@@ -105,24 +105,31 @@ class DynamicDataEncoder implements DataEncoderInterface
 		$charMap[2][44] = 12;
 		$charMap[2][46] = 13;
 
-		$mixedTable = [
-			'\0', ' ', '\1', '\2', '\3', '\4', '\5', '\6', '\7', '\b', '\t', '\n',
-			'\13', '\f', '\r', '\33', '\34', '\35', '\36', '\37', '@', '\\', '^',
-			'_', '`', '|', '~', '\177',
-		];
-		for ($i = 0; $i < 28; $i++) {
-			$charMap[3][ord($mixedTable[$i])] = $i;
+		//	'\0', ' ', '\1', '\2', '\3', '\4', '\5', '\6', '\7', '\b', '\t', '\n',
+		//	'\13', '\f', '\r', '\33', '\34', '\35', '\36', '\37', '@', '\\', '^',
+		//	'_', '`', '|', '~', '\177',
+		$mixedTable = [32 => 1,	64 => 20, 92 => 27,	94 => 22, 95 => 23, 96 => 24, 124 => 25, 126 => 26];
+
+		foreach($mixedTable as $i => $val)
+		{
+			$charMap[3][$val] = $i;
 		}
 
+		// '\0', '\r', '\0', '\0', '\0', '\0', '!', '\'', '#', '$', '%', '&', '\'',
+		// '(', ')', '*', '+', ',', '-', '.', '/', ':', ';', '<', '=', '>', '?',
+		// '[', ']', '{', '}',
 		$punctTable = [
-			'\0', '\r', '\0', '\0', '\0', '\0', '!', '\'', '#', '$', '%', '&', '\'',
-			'(', ')', '*', '+', ',', '-', '.', '/', ':', ';', '<', '=', '>', '?',
-			'[', ']', '{', '}',
+			33 => 6, 35 => 8, 36 => 9, 37 => 10,
+			38 => 11, 39 => 12,	40 => 13, 41 => 14,
+			42 => 15, 43 => 16,	44 => 17, 45 => 18,
+			46 => 19, 47 => 20,	58 => 21, 59 => 22,
+			60 => 23, 61 => 24,	62 => 25, 63 => 26,
+			91 => 27, 92 => 5, 93 => 28, 123 => 29,
+			125 => 30
 		];
-		for ($i = 0; $i < 31; $i++) {
-			#if (ord($punctTable[$i]) > 0) {
-				$charMap[4][ord($punctTable[$i])] = $i;
-			#}
+
+		foreach($punctTable as $i => $val){
+			$charMap[4][$i] = $val;
 		}
 
 		return $charMap;
@@ -192,7 +199,6 @@ class DynamicDataEncoder implements DataEncoderInterface
 						$stateNoBinary = $this->endBinaryShift($state, $index);
 					}
 					if (!$charInCurrentTable || $mode == $state->getMode() || $mode == 2) {
-						
 						$result[] = $this->latchAndAppend($stateNoBinary, $mode, $charInMode);
 					}
 					if (!$charInCurrentTable && $this->getShift($state->getMode(), $mode) >= 0) {
@@ -276,7 +282,7 @@ class DynamicDataEncoder implements DataEncoderInterface
 
 		return $token;
     }
-	
+
 	private function latchAndAppend($token, $mode, $value)
     {
         $bitCount = $token->getBitCount();

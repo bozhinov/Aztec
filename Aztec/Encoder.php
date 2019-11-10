@@ -18,8 +18,9 @@
 
 namespace Aztec;
 
-use Aztec\Encoder\DataEncoderInterface;
 use Aztec\Encoder\DynamicDataEncoder;
+use Aztec\Encoder\BinaryDataEncoder;
+use Aztec\Encoder\StringDataEncoder;
 use Aztec\ReedSolomon\GenericGF;
 use Aztec\ReedSolomon\ReedSolomonEncoder;
 use Aztec\BitArray;
@@ -41,13 +42,20 @@ class Encoder
 		$this->MATRIX[$x][$y] = 1;
 	}
 
-    public function encode(string $content, int $eccPercent = 33, $dataEncoder = null)
+    public function encode(string $content, int $eccPercent = 33, $hint = "dynamic")
     {
-        if (null === $dataEncoder) {
-            $dataEncoder = new DynamicDataEncoder();
-        } elseif (!($dataEncoder instanceof DataEncoderInterface)) {
-            throw new \InvalidArgumentException('dataEncoder has to implement DataEncoderInterface');
-        }
+        switch ($hint) {
+			case "dynamic":
+				$dataEncoder = new DynamicDataEncoder();
+				break;
+			case "binary":
+				$dataEncoder = new BinaryDataEncoder();
+				break;
+			case "string":
+				$dataEncoder = new StringDataEncoder();
+				break;
+		}
+
         $bits = $dataEncoder->encode($content);
 
         $eccBits = intval($bits->getLength() * $eccPercent / 100 + 11);
