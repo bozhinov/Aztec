@@ -77,17 +77,17 @@ class Token
         return $this->bitCount;
     }
 
-    final public function getPrevious()
+    public function getPrevious()
     {
         return $this->previous;
     }
 
-    final public function getTotalBitCount()
+    public function getTotalBitCount()
     {
         return $this->totalBitCount;
     }
 
-    final public function add($value, $bitCount)
+    public function add($value, $bitCount)
     {
         $token = new self($this, $this->totalBitCount + $bitCount, $value, $bitCount);
 		$token->setState($this->mode, $this->shiftByteCount, $this->bitCount);
@@ -96,7 +96,7 @@ class Token
 		return $token;
     }
 
-    final public function addBinaryShift($value, $byteCount)
+    public function addBinaryShift($value, $byteCount)
     {
         $bitCount = ($byteCount * 8);
         if ($byteCount <= 31) {
