@@ -202,7 +202,8 @@ class DynamicDataEncoder
         $result = [];
 
         foreach ($this->states as $state) {
-			$charInCurrentTable = ($this->getCharMapping($ch, $state->getMode()) > 0);
+			$current_mode = $state->getMode();
+			$charInCurrentTable = ($this->getCharMapping($ch, $current_mode) > 0);
 			$stateNoBinary = null;
 			for ($mode = 0; $mode <= 4; $mode++) {
 				$charInMode = $this->getCharMapping($ch, $mode);
@@ -210,15 +211,15 @@ class DynamicDataEncoder
 					if ($stateNoBinary === null) {
 						$stateNoBinary = $this->endBinaryShift($state, $index);
 					}
-					if (!$charInCurrentTable || $mode == $state->getMode() || $mode == 2) {
+					if (!$charInCurrentTable || $mode == $current_mode || $mode == 2) {
 						$result[] = $this->latchAndAppend($stateNoBinary, $mode, $charInMode);
 					}
-					if (!$charInCurrentTable && $this->getShift($state->getMode(), $mode) >= 0) {
+					if (!$charInCurrentTable && $this->getShift($current_mode, $mode) >= 0) {
 						$result[] = $this->shiftAndAppend($stateNoBinary, $mode, $charInMode);
 					}
 				}
 			}
-			if ($state->getShiftByteCount() > 0 || $this->getCharMapping($ch, $state->getMode()) == 0) {
+			if ($state->getShiftByteCount() > 0 || $this->getCharMapping($ch, $current_mode) == 0) {
 				$result[] = $this->addBinaryShiftChar($state, $index);
 			}
         }

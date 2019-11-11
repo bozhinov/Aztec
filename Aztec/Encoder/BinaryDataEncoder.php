@@ -22,7 +22,7 @@ use Aztec\BitArray;
 
 class BinaryDataEncoder
 {
-    private $CODE_UPPER_BS = 31;
+   # CODE_UPPER_BS = 31;
 
     public function encode($data)
     {
@@ -30,7 +30,7 @@ class BinaryDataEncoder
 
         while (strlen($data) >= 32) {
             $chunkLength = min(strlen($data), (2048 + 32 - 1));
-            $result->append($this->CODE_UPPER_BS, 5);
+            $result->append(31, 5);
             $result->append(0, 5);
             $result->append(($chunkLength - 32), 11);
 			$bytes = substr($data, 0, $chunkLength);
@@ -39,10 +39,10 @@ class BinaryDataEncoder
 			}
             $data = substr($data, $chunkLength);
         }
-
-        if (strlen($data) > 0) {
-            $result->append($this->CODE_UPPER_BS, 5);
-			$len = strlen($data);
+		
+		$len = strlen($data);
+        if ($len > 0) {
+            $result->append(31, 5);
             $result->append($len, 5);
 			for ($i = 0; $i < $len; $i++) {
 				$result->append(ord($data[$i]), 8);
