@@ -32,7 +32,7 @@ class BinaryShiftToken extends Token
         $this->shiftByteCount = $shiftByteCount;
     }
 
-    public function appendTo(BitArray $bitArray, array $text)
+    public function appendTo(BitArray &$bitArray, array $text_e)
     {
         for ($i = 0; $i < $this->shiftByteCount; $i++) {
             if ($i == 0 || ($i == 31 && $this->shiftByteCount <= 62)) {
@@ -45,9 +45,7 @@ class BinaryShiftToken extends Token
                     $bitArray->append($this->shiftByteCount - 31, 5);
                 }
             }
-            $bitArray->append(ord($text[$this->shiftStart + $i]), 8);
+            $bitArray->append($text_e[$this->shiftStart + $i], 8);
         }
-
-        return $bitArray;
     }
 }

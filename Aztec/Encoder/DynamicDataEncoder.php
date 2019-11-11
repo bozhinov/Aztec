@@ -137,30 +137,40 @@ class DynamicDataEncoder
 
 	private function getCharMapping($char, $mode)
     {
-        return $this->charMap[$mode][ord($char)];
+        return $this->charMap[$mode][$char];
     }
 
     public function encode($data)
     {
-        $text = str_split($data);
-		$textCount = count($text);
+		# ord('\r') = 92
+		# ord('.') = 46
+		# ord(',') = 44
+		# ord(':') = 58
+		# ord('\n') = 92
+		# ord(' ') = 32
+		# ord('') = 0
+
+		$text_e = array_values(unpack('C*', $data));
+		$textCount = count($text_e);
+
 		$token = new SimpleToken(null, 0, 0, 0);
 		$token->setState(0,0,0);
         $states = [$token];
+
         for ($index = 0; $index < $textCount; $index++) {
-            $nextChar = (($index + 1 != $textCount) ? $text[$index + 1] : '');
-            switch ($text[$index]) {
-                case '\r':
-                    $pairCode = (($nextChar == '\n') ? 2 : 0);
+            $nextChar = (($index + 1 != $textCount) ? $text_e[$index + 1] : 0);
+            switch ($text_e[$index]) {
+                case 92:
+                    $pairCode = (($nextChar == 92) ? 2 : 0);
                     break;
-                case '.':
-                    $pairCode = (($nextChar == ' ') ? 3 : 0);
+                case 46:
+                    $pairCode = (($nextChar == 32) ? 3 : 0);
                     break;
-                case ',':
-                    $pairCode = (($nextChar == ' ') ? 4 : 0);
+                case 44:
+                    $pairCode = (($nextChar == 32) ? 4 : 0);
                     break;
-                case ':':
-                    $pairCode = (($nextChar == ' ') ? 5 : 0);
+                case 58:
+                    $pairCode = (($nextChar == 32) ? 5 : 0);
                     break;
                 default:
                     $pairCode = 0;
@@ -170,7 +180,7 @@ class DynamicDataEncoder
                 $states = $this->updateStateListForPair($states, $index, $pairCode);
                 $index++;
             } else {
-                $states = $this->updateStateListForChar($states, $index, $text);
+                $states = $this->updateStateListForChar($states, $index, $text_e[$index]);
             }
         }
 
@@ -181,13 +191,12 @@ class DynamicDataEncoder
             }
         }
 
-        return $this->toBitArray($minState, $text);
+        return $this->toBitArray($minState, $text_e);
     }
 
-    private function updateStateListForChar(array $states, $index, $text)
+    private function updateStateListForChar(array $states, $index, $ch)
     {
         $result = [];
-		$ch = $text[$index];
 
         foreach ($states as $state) {
 			$charInCurrentTable = ($this->getCharMapping($ch, $state->getMode()) > 0);
@@ -206,7 +215,7 @@ class DynamicDataEncoder
 					}
 				}
 			}
-			if ($state->getBinaryShiftByteCount() > 0 || $this->getCharMapping($ch, $state->getMode()) == 0) {
+			if ($state->getShiftByteCount() > 0 || $this->getCharMapping($ch, $state->getMode()) == 0) {
 				$result[] = $this->addBinaryShiftChar($state, $index);
 			}
         }
@@ -228,7 +237,7 @@ class DynamicDataEncoder
 				$interm = $this->latchAndAppend($stateNoBinary, 2, 16 - $pairCode);
 				$result[] = $this->latchAndAppend($interm, 2, 1);
 			}
-			if ($state->getBinaryShiftByteCount() > 0) {
+			if ($state->getShiftByteCount() > 0) {
 				$interm = $this->addBinaryShiftChar($state, $index);
 				$result[] = $this->addBinaryShiftChar($interm + 1);
 			}
@@ -264,7 +273,7 @@ class DynamicDataEncoder
     private function isBetterThanOrEqualTo($one, $other)
     {
         $mySize = $one->getBitCount() + ($this->getLatch($one->getMode(), $other->getMode()) >> 16);
-        if ($other->getBinaryShiftByteCount() > 0 && ($one->getBinaryShiftByteCount() == 0 || $one->getBinaryShiftByteCount() > $other->getBinaryShiftByteCount())) {
+        if ($other->getShiftByteCount() > 0 && ($one->getShiftByteCount() == 0 || $one->getShiftByteCount() > $other->getShiftByteCount())) {
             $mySize += 10;
         }
 
@@ -312,7 +321,7 @@ class DynamicDataEncoder
             $current_mode = $this->MODE_UPPER;
         }
 
-		$shiftByteCount = $token->getBinaryShiftByteCount();
+		$shiftByteCount = $token->getShiftByteCount();
         if ($shiftByteCount == 0 || $shiftByteCount == 31) {
             $deltaBitCount = 18;
         } elseif ($shiftByteCount == 62) {
@@ -330,14 +339,14 @@ class DynamicDataEncoder
 
     private function endBinaryShift($token, $index)
     {
-		$shiftByteCount = $token->getBinaryShiftByteCount();
+		$shiftByteCount = $token->getShiftByteCount();
         if ($shiftByteCount == 0) {
             return $token;
         }
 
 		$mode = $token->getMode();
 		$bitCount = $token->getBitCount();
-		
+
         $token = $token->addBinaryShift($index - $shiftByteCount, $shiftByteCount);
 
         $token->setState($mode, 0, $bitCount);
@@ -345,10 +354,10 @@ class DynamicDataEncoder
 		return $token;
     }
 
-    private function toBitArray($token, array $text)
+    private function toBitArray($token, array $text_e)
     {
         $symbols = [];
-        $token = $this->endBinaryShift($token, count($text));
+        $token = $this->endBinaryShift($token, count($text_e));
         while ($token !== null) {
             array_unshift($symbols, $token);
             $token = $token->getPrevious();
@@ -356,7 +365,7 @@ class DynamicDataEncoder
 
         $bitArray = new BitArray();
         foreach ($symbols as $symbol) {
-            $bitArray = $symbol->appendTo($bitArray, $text);
+            $symbol->appendTo($bitArray, $text_e);
         }
 
         return $bitArray;

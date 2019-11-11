@@ -32,7 +32,7 @@ class SimpleToken extends Token
         $this->bitCount = $bitCount;
     }
 
-    public function appendTo(BitArray $bitArray, array $text)
+    public function appendTo(BitArray &$bitArray, array $text)
     {
         $bitArray->append($this->value, $this->bitCount);
 

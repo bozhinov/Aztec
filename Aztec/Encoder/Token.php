@@ -51,7 +51,7 @@ abstract class Token
         return $this->mode;
     }
 
-    public function getBinaryShiftByteCount()
+    public function getShiftByteCount()
     {
 		if (is_null($this->shiftByteCount)){
 			debug_print_backtrace();
@@ -100,5 +100,5 @@ abstract class Token
         return new BinaryShiftToken($this, $this->totalBitCount + $bitCount, $start, $byteCount);
     }
 
-    abstract public function appendTo(BitArray $bitArray, array $text);
+    abstract public function appendTo(BitArray &$bitArray, array $text);
 }
