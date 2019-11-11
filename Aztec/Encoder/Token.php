@@ -18,23 +18,31 @@
 
 namespace Aztec\Encoder;
 
-use Aztec\BitArray;
-
-abstract class Token
+class Token
 {
     private $previous;
+	private $type = 0;
     private $totalBitCount;
-
     private $mode = NULL;
     private $shiftByteCount = NULL;
     private $bitCount = NULL;
 
-    public function __construct(Token $previous = null, $totalBitCount)
+    private $value;
+    private $bitCount2;
+
+    public function __construct(Token $previous = null, $totalBitCount, $value, $bitCount2)
     {
         $this->previous = $previous;
         $this->totalBitCount = $totalBitCount;
+		$this->value = $value;
+		$this->bitCount2 = $bitCount2;
     }
-	
+
+	private function setType($type)
+	{
+		$this->type = $type;
+	}
+
 	public function setState($mode, $binaryBytes, $bitCount)
 	{
         $this->mode = $mode;
@@ -81,12 +89,14 @@ abstract class Token
 
     final public function add($value, $bitCount)
     {
-        $token = new SimpleToken($this, $this->totalBitCount + $bitCount, $value, $bitCount);
+        $token = new self($this, $this->totalBitCount + $bitCount, $value, $bitCount);
 		$token->setState($this->mode, $this->shiftByteCount, $this->bitCount);
+		$token->setType(0);
+
 		return $token;
     }
 
-    final public function addBinaryShift($start, $byteCount)
+    final public function addBinaryShift($value, $byteCount)
     {
         $bitCount = ($byteCount * 8);
         if ($byteCount <= 31) {
@@ -97,8 +107,14 @@ abstract class Token
             $bitCount += 21;
         }
 
-        return new BinaryShiftToken($this, $this->totalBitCount + $bitCount, $start, $byteCount);
+		$token = new self($this, $this->totalBitCount + $bitCount, $value, $byteCount);
+		$token->setType(1);
+
+        return $token;
     }
 
-    abstract public function appendTo(BitArray &$bitArray, array $text);
+	public function getData()
+	{
+		return [$this->value, $this->bitCount2, $this->type];
+	}
 }

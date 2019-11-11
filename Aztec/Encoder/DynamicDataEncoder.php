@@ -22,9 +22,12 @@ use Aztec\BitArray;
 
 class DynamicDataEncoder
 {
+	private $states;
 	private $charMap;
 	private $shiftTable;
     private $latchTable;
+	private $finalBitArray;
+	private $textCodes;
 
 	private $MODE_UPPER = 0;
     private $MODE_LOWER = 1;
@@ -150,16 +153,16 @@ class DynamicDataEncoder
 		# ord(' ') = 32
 		# ord('') = 0
 
-		$text_e = array_values(unpack('C*', $data));
-		$textCount = count($text_e);
+		$this->textCodes = array_values(unpack('C*', $data));
+		$textCount = count($this->textCodes);
 
-		$token = new SimpleToken(null, 0, 0, 0);
+		$token = new Token(null, 0, 0, 0, 0, 0);
 		$token->setState(0,0,0);
-        $states = [$token];
+        $this->states = [$token];
 
         for ($index = 0; $index < $textCount; $index++) {
-            $nextChar = (($index + 1 != $textCount) ? $text_e[$index + 1] : 0);
-            switch ($text_e[$index]) {
+            $nextChar = (($index + 1 != $textCount) ? $this->textCodes[$index + 1] : 0);
+            switch ($this->textCodes[$index]) {
                 case 92:
                     $pairCode = (($nextChar == 92) ? 2 : 0);
                     break;
@@ -177,28 +180,28 @@ class DynamicDataEncoder
                     break;
             }
             if ($pairCode > 0) {
-                $states = $this->updateStateListForPair($states, $index, $pairCode);
+                $this->updateStateListForPair($index, $pairCode);
                 $index++;
             } else {
-                $states = $this->updateStateListForChar($states, $index, $text_e[$index]);
+                $this->updateStateListForChar($index,$this->textCodes[$index]);
             }
         }
 
-        $minState = $states[0];
-        foreach ($states as $state) {
+        $minState = $this->states[0];
+        foreach ($this->states as $state) {
             if ($state->getBitCount() < $minState->getBitCount()) {
                 $minState = $state;
             }
         }
 
-        return $this->toBitArray($minState, $text_e);
+        return $this->toBitArray($minState);
     }
 
-    private function updateStateListForChar(array $states, $index, $ch)
+    private function updateStateListForChar($index, $ch)
     {
         $result = [];
 
-        foreach ($states as $state) {
+        foreach ($this->states as $state) {
 			$charInCurrentTable = ($this->getCharMapping($ch, $state->getMode()) > 0);
 			$stateNoBinary = null;
 			for ($mode = 0; $mode <= 4; $mode++) {
@@ -220,13 +223,13 @@ class DynamicDataEncoder
 			}
         }
 
-        return $this->simplifyStates($result);
+		$this->states = $this->simplifyStates($result);
     }
 
-    private function updateStateListForPair(array $states, $index, $pairCode)
+    private function updateStateListForPair($index, $pairCode)
     {
         $result = [];
-        foreach ($states as $state) {
+        foreach ($this->states as $state) {
 			$stateNoBinary = $this->endBinaryShift($state, $index);
 
 			$result[] = $this->latchAndAppend($stateNoBinary, 4, $pairCode);
@@ -243,7 +246,7 @@ class DynamicDataEncoder
 			}
         }
 
-        return $this->simplifyStates($result);
+        $this->states = $this->simplifyStates($result);
     }
 
     private function simplifyStates(array $states)
@@ -267,7 +270,7 @@ class DynamicDataEncoder
             }
         }
 
-        return $result;
+		return $result;
     }
 
     private function isBetterThanOrEqualTo($one, $other)
@@ -354,21 +357,46 @@ class DynamicDataEncoder
 		return $token;
     }
 
-    private function toBitArray($token, array $text_e)
+    public function appendBinaryShift($value, $bitCount)
     {
+        for ($i = 0; $i < $bitCount; $i++) {
+            if ($i == 0 || ($i == 31 && $bitCount <= 62)) {
+                $this->finalBitArray->append(31, 5);
+                if ($bitCount > 62) {
+                    $this->finalBitArray->append($bitCount - 31, 16);
+                } elseif ($i == 0) {
+                    $this->finalBitArray->append(min($bitCount, 31), 5);
+                } else {
+                    $this->finalBitArray->append($bitCount - 31, 5);
+                }
+            }
+            $this->finalBitArray->append($this->textCodes[$value + $i], 8);
+        }
+    }
+
+    private function toBitArray($token)
+    {		
         $symbols = [];
-        $token = $this->endBinaryShift($token, count($text_e));
+        $token = $this->endBinaryShift($token, count($this->textCodes));
+
         while ($token !== null) {
-            array_unshift($symbols, $token);
+			$symbols[] = $token->getData();
             $token = $token->getPrevious();
         }
 
-        $bitArray = new BitArray();
+		$symbols = array_reverse($symbols);
+
+        $this->finalBitArray = new BitArray();
         foreach ($symbols as $symbol) {
-            $symbol->appendTo($bitArray, $text_e);
+			if ($symbol[2] == 1) { # BinaryShiftToken
+				$this->appendBinaryShift($symbol[0], $symbol[1]);
+
+			} elseif ($symbol[2] == 0) { # SimpleToken
+				$this->finalBitArray->append($symbol[0], $symbol[1]);
+			}
         }
 
-        return $bitArray;
+        return $this->finalBitArray;
     }
 
 }
