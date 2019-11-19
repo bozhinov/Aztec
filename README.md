@@ -2,7 +2,7 @@
 
 **Aztec** is a PHP library to generate Aztec 2D barcodes.
 
-![Aztec code example](http://i.imgur.com/8JcHtOl.png)
+![Aztec code example](https://github.com/bozhinov/PHP-Aztec-fork/blob/master/temp/example.basic.png?raw=true)
 
 ## Usage
 Check the examples folder
