@@ -2,11 +2,15 @@
 
 require_once("bootstrap.php");
 
-use Aztec\Encoder;
-use Aztec\PngRenderer;
+use Aztec\Aztec;
 
-list($code, $width) = (new Encoder())->encode('Hello World 3 4 5 asasdas22345 . 456!');
+$text = 'Hello World 3 4 5 asasdas22345 . 456!';
 
-file_put_contents("temp/example.pairCode.png", (new PngRenderer())->render($code, $width));
+// Encode the data
+$aztec = new Aztec();
+$aztec->encode($text);
+
+// Create a PNG image
+$aztec->toFile('temp/example.pairCode.png');
 
 ?>

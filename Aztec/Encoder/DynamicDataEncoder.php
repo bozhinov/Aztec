@@ -291,8 +291,8 @@ class DynamicDataEncoder
         $token = $token->add($this->getShift($current_mode, $mode), $thisModeBitCount);
         $token = $token->add($value, 5);
 		$bitCount = $token->getBitCount();
-        $token->setState($current_mode, 0, $bitCount + $thisModeBitCount + 5);
 
+        $token->setState($current_mode, 0, $bitCount + $thisModeBitCount + 5);
 		return $token;
     }
 
@@ -306,10 +306,10 @@ class DynamicDataEncoder
             $token = $token->add(($latch & 0xFFFF), ($latch >> 16));
             $bitCount += ($latch >> 16);
         }
-        $latchModeBitCount = ($mode == $this->MODE_DIGIT ? 4 : 5);
-        $token = $token->add($value, $latchModeBitCount);
+        $thisModeBitCount = ($mode == $this->MODE_DIGIT ? 4 : 5);
+        $token = $token->add($value, $thisModeBitCount);
 
-        $token->setState($mode, 0, $bitCount + $latchModeBitCount);
+        $token->setState($mode, 0, $bitCount + $thisModeBitCount);
 		return $token;
     }
 

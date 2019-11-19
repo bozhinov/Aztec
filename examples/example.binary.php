@@ -2,11 +2,16 @@
 
 require_once("bootstrap.php");
 
-use Aztec\Encoder;
-use Aztec\PngRenderer;
+use Aztec\Aztec;
 
-list($code, $width) = (new Encoder())->encode('Hello World!', 33, "binary");
+// Text to be encoded
+$text = 'Hello World!';
 
-file_put_contents("temp/example.binary.png", (new PngRenderer())->render($code, $width));
+// Encode the data
+$aztec = new Aztec(["hint" => "binary"]);
+$aztec->encode($text);
+
+// Create a PNG image
+$aztec->toFile('temp/example.binary.png');
 
 ?>

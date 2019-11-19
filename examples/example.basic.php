@@ -2,11 +2,16 @@
 
 require_once("bootstrap.php");
 
-use Aztec\Encoder;
-use Aztec\PngRenderer;
+use Aztec\Aztec;
 
-list($code, $width) = (new Encoder())->encode('Hello World!');
+// Text to be encoded
+$text = 'Hello World!';
 
-file_put_contents("temp/example.basic.png", (new PngRenderer())->render($code, $width));
+// Encode the data
+$aztec = new Aztec();
+$aztec->encode($text);
+
+// Create a PNG image
+$aztec->toFile('temp/example.basic.png');
 
 ?>

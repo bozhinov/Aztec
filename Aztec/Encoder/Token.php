@@ -23,9 +23,9 @@ class Token
     private $previous;
 	private $type = 0;
     private $totalBitCount;
-    private $mode = NULL;
-    private $shiftByteCount = NULL;
-    private $bitCount = NULL;
+    private $mode;
+    private $shiftByteCount;
+    private $bitCount;
 
     private $value;
     private $bitCount2;
@@ -52,28 +52,16 @@ class Token
 
     public function getMode()
     {
-		if (is_null($this->mode)){
-			debug_print_backtrace();
-			die();
-		}
         return $this->mode;
     }
 
     public function getShiftByteCount()
     {
-		if (is_null($this->shiftByteCount)){
-			debug_print_backtrace();
-			die();
-		}
         return $this->shiftByteCount;
     }
 
     public function getBitCount()
     {
-		if (is_null($this->bitCount)){
-			debug_print_backtrace();
-			die();
-		}
         return $this->bitCount;
     }
 

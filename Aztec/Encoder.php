@@ -51,7 +51,7 @@ class Encoder
 			case "binary":
 				$dataEncoder = new BinaryDataEncoder();
 				break;
-			case "string":
+			case "text":
 				$dataEncoder = new StringDataEncoder();
 				break;
 		}
@@ -185,7 +185,7 @@ class Encoder
             }
         }
 
-        return [$this->MATRIX, $matrixSize];
+        return $this->MATRIX;
     }
 
     private function drawBullsEye($center, $size)
