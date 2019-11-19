@@ -20,89 +20,82 @@ namespace Aztec\Encoder;
 
 class Token
 {
-    private $previous;
-	private $type = 0;
-    private $totalBitCount;
-    private $mode;
-    private $shiftByteCount;
-    private $bitCount;
+	private $previous;
+	private $type;
+	private $totalBitCount;
+	private $mode;
+	private $shiftByteCount;
+	private $bitCount;
+	private $value;
+	private $offset;
 
-    private $value;
-    private $bitCount2;
-
-    public function __construct(Token $previous = null, $totalBitCount, $value, $bitCount2)
-    {
-        $this->previous = $previous;
-        $this->totalBitCount = $totalBitCount;
-		$this->value = $value;
-		$this->bitCount2 = $bitCount2;
-    }
-
-	private function setType($type)
+	public function __construct(Token $previous = null, $totalBitCount, $value, $offset, $type)
 	{
+		$this->previous = $previous;
+		$this->totalBitCount = $totalBitCount;
+		$this->value = $value;
+		$this->offset = $offset;
 		$this->type = $type;
 	}
 
 	public function setState($mode, $binaryBytes, $bitCount)
 	{
-        $this->mode = $mode;
-        $this->shiftByteCount = $binaryBytes;
-        $this->bitCount = $bitCount;
+		$this->mode = $mode;
+		$this->shiftByteCount = $binaryBytes;
+		$this->bitCount = $bitCount;
 	}
 
-    public function getMode()
-    {
-        return $this->mode;
-    }
+	public function getMode()
+	{
+		return $this->mode;
+	}
 
-    public function getShiftByteCount()
-    {
-        return $this->shiftByteCount;
-    }
+	public function getShiftByteCount()
+	{
+		return $this->shiftByteCount;
+	}
 
-    public function getBitCount()
-    {
-        return $this->bitCount;
-    }
+	public function getBitCount()
+	{
+		return $this->bitCount;
+	}
 
-    public function getPrevious()
-    {
-        return $this->previous;
-    }
+	public function getPrevious()
+	{
+		return $this->previous;
+	}
 
-    public function getTotalBitCount()
-    {
-        return $this->totalBitCount;
-    }
+	public function getTotalBitCount()
+	{
+		return $this->totalBitCount;
+	}
 
-    public function add($value, $bitCount)
-    {
-        $token = new self($this, $this->totalBitCount + $bitCount, $value, $bitCount);
+	public function add($value, $bitCount)
+	{
+		$token = new self($this, $this->totalBitCount + $bitCount, $value, $bitCount, 0);
 		$token->setState($this->mode, $this->shiftByteCount, $this->bitCount);
-		$token->setType(0);
 
 		return $token;
-    }
+	}
 
-    public function addBinaryShift($value, $byteCount)
-    {
-        $bitCount = ($byteCount * 8);
-        if ($byteCount <= 31) {
-            $bitCount += 10;
-        } elseif ($byteCount <= 62) {
-            $bitCount += 20;
-        } else {
-            $bitCount += 21;
-        }
+	public function addBinaryShift($value, $byteCount)
+	{
+		$bitCount = ($byteCount * 8);
+		if ($byteCount <= 31) {
+			$bitCount += 10;
+		} elseif ($byteCount <= 62) {
+			$bitCount += 20;
+		} else {
+			$bitCount += 21;
+		}
 
-		$token = new self($this, $this->totalBitCount + $bitCount, $value, $byteCount);
-		$token->setType(1);
+		$token = new self($this, $this->totalBitCount + $bitCount, $value, $byteCount, 1);
 
-        return $token;
-    }
+		return $token;
+	}
 
 	public function getData()
 	{
-		return [$this->value, $this->bitCount2, $this->type];
+		return [$this->value, $this->offset, $this->type];
 	}
 }
