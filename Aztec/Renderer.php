@@ -68,8 +68,9 @@ class Renderer
 	private function createImage()
 	{
 		$width = count($this->pixelGrid[0]);
-        $f = $this->options['ratio'];
-        $this->image = imagecreate($width * $f, $width * $f);
+		$ratio = $this->options['ratio'];
+		$padding = $this->options['padding'];
+		$this->image = imagecreate(($width * $ratio) + ($padding * 2), ($width * $ratio) + ($padding * 2));
 
 		// Extract options
 		list($R,$G,$B) = $this->options['bgColor']->get();
@@ -79,13 +80,12 @@ class Renderer
 		$colorAlloc = imagecolorallocate($this->image,$R,$G,$B);
 
 		// Render the code
-        for ($x = 0; $x < $width; $x++) {
-            for ($y = 0; $y < $width; $y++) {
-				$bit = (isset($this->pixelGrid[$x][$y])) ? $this->pixelGrid[$x][$y] : FALSE;
-                if ($bit !== FALSE) {
-                    imagefilledrectangle($this->image, $x * $f, $y * $f, (($x + 1) * $f - 1), (($y + 1) * $f - 1), $colorAlloc);
-                }
-            }
-        }
+		for ($x = 0; $x < $width; $x++) {
+			for ($y = 0; $y < $width; $y++) {
+				if (isset($this->pixelGrid[$x][$y])){
+					imagefilledrectangle($this->image, ($x * $ratio) + $padding, ($y * $ratio) + $padding, (($x + 1) * $ratio - 1) + $padding, (($y + 1) * $ratio - 1) + $padding, $colorAlloc);
+				}
+			}
+		}
 	}
 }

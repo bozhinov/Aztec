@@ -19,6 +19,7 @@ class Aztec
 		$this->options['eccPercent'] = (isset($options['eccPercent'])) ? $options['eccPercent'] : 33;
 		$this->options['hint'] = (isset($options['hint'])) ? $options['hint'] : "dynamic";
 		$this->options['ratio'] = (isset($options['ratio'])) ? $options['ratio'] : 4;
+		$this->options['padding'] = (isset($options['padding'])) ? $options['padding'] : 20;
 		$this->options['quality'] = (isset($options['quality'])) ? $options['quality'] : 90;
 
 		$this->validateOptions();
@@ -41,6 +42,7 @@ class Aztec
 		$this->option_in_range('ratio', 1, 10);
 		$this->option_in_range('eccPercent', 1, 200);
 		$this->option_in_range('quality', 0, 100);
+		$this->option_in_range('padding', 0, 50);
 
 		if (!in_array($this->options["hint"], ["binary", "dynamic", "text"])){
 			throw azException::InvalidInput("Invalid value for \"hint\". Expected \"binary\", \"text\" or \"dynamic\".");
