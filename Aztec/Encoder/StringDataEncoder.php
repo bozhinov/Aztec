@@ -18,10 +18,11 @@
 
 namespace Aztec\Encoder;
 
-class StringDataEncoder
+class StringDataEncoder extends BinaryDataEncoder
 {
     public function encode($data)
     {
+		# consider ini_get('default_charset') != ('UTF-8' || 'ISO-8859-1')
         $encoded = iconv('UTF-8', 'ISO-8859-1//IGNORE', $data);
 
         return parent::encode($encoded);
