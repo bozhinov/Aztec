@@ -61,9 +61,6 @@ class Encoder
 			case "binary":
 				$dataEncoder = new BinaryDataEncoder();
 				break;
-			case "text":
-				$dataEncoder = new StringDataEncoder();
-				break;
 		}
 
 		$bstream = $dataEncoder->encode($content);

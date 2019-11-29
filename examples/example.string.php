@@ -7,8 +7,11 @@ use Aztec\Aztec;
 // Text to be encoded
 $text = 'Hello World!';
 
+# consider ini_get('default_charset') != ('UTF-8' || 'ISO-8859-1')
+$text = iconv('UTF-8', 'ISO-8859-1//IGNORE', $text);
+
 // Encode the data
-$aztec = new Aztec(["hint" => "text"]);
+$aztec = new Aztec(["hint" => "binary"]);
 $aztec->encode($text);
 
 // Create a PNG image
