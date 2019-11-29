@@ -20,8 +20,6 @@ namespace Aztec;
 
 use Aztec\Encoder\DynamicDataEncoder;
 use Aztec\Encoder\BinaryDataEncoder;
-use Aztec\Encoder\StringDataEncoder;
-use Aztec\ReedSolomon\GenericGF;
 use Aztec\ReedSolomon\ReedSolomonEncoder;
 use Aztec\BitArray;
 
@@ -257,7 +255,7 @@ class Encoder
 		$totalSizeInFullWords = intval($totalSymbolBits / $wordSize);
 		$messageWords = $this->bitsToWords($stuffedBits, $wordSize, $totalSizeInFullWords);
 
-		$rs = new ReedSolomonEncoder($this->getGF($wordSize));
+		$rs = new ReedSolomonEncoder($wordSize);
 		$messageWords = $rs->encodePadded($messageWords, $totalSizeInFullWords - $messageSizeInWords);
 
 		$startPad = $totalSymbolBits % $wordSize;
@@ -293,24 +291,6 @@ class Encoder
 		}
 
 		return $message;
-	}
-
-	private function getGF($wordSize)
-	{
-		switch ($wordSize) {
-			case 4:
-				return GenericGF::getInstance(GenericGF::AZTEC_PARAM);
-			case 6:
-				return GenericGF::getInstance(GenericGF::AZTEC_DATA_6);
-			case 8:
-				return GenericGF::getInstance(GenericGF::AZTEC_DATA_8);
-			case 10:
-				return GenericGF::getInstance(GenericGF::AZTEC_DATA_10);
-			case 12:
-				return GenericGF::getInstance(GenericGF::AZTEC_DATA_12);
-			default:
-				return null;
-		}
 	}
 
 	private function stuffBits($bits, $wordSize)

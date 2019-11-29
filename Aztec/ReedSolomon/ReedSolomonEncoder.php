@@ -18,17 +18,37 @@
 
 namespace Aztec\ReedSolomon;
 
+use Aztec\ReedSolomon\GenericGF;
+
 class ReedSolomonEncoder
 {
     private $field;
     private $cachedGenerators;
 
-    public function __construct(GenericGF $field)
+    public function __construct($wordSize)
     {
-        $this->field = $field;
+        $this->field = $this->getGF($wordSize);
         $this->cachedGenerators = [];
-        $this->cachedGenerators[] = new GenericGFPoly($field, [1]);
+        $this->cachedGenerators[] = new GenericGFPoly($this->field, [1]);
     }
+
+	private function getGF($wordSize)
+	{
+		switch ($wordSize) {
+			case 4:
+				return GenericGF::getInstance(GenericGF::AZTEC_PARAM);
+			case 6:
+				return GenericGF::getInstance(GenericGF::AZTEC_DATA_6);
+			case 8:
+				return GenericGF::getInstance(GenericGF::AZTEC_DATA_8);
+			case 10:
+				return GenericGF::getInstance(GenericGF::AZTEC_DATA_10);
+			case 12:
+				return GenericGF::getInstance(GenericGF::AZTEC_DATA_12);
+			default:
+				return null;
+		}
+	}
 
     private function buildGenerator($degree)
     {
