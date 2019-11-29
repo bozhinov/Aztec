@@ -44,8 +44,8 @@ class Aztec
 		$this->option_in_range('quality', 0, 100);
 		$this->option_in_range('padding', 0, 50);
 
-		if (!in_array($this->options["hint"], ["binary", "dynamic", "text"])){
-			throw azException::InvalidInput("Invalid value for \"hint\". Expected \"binary\", \"text\" or \"dynamic\".");
+		if (!in_array($this->options["hint"], ["binary", "dynamic"])){
+			throw azException::InvalidInput("Invalid value for \"hint\". Expected \"binary\" or \"dynamic\".");
         }
 
 		if (!($this->options['color'] instanceof azColor)) {
