@@ -18,8 +18,6 @@
 
 namespace Aztec\Encoder;
 
-use Aztec\BitArray;
-
 class DynamicDataEncoder
 {
 	private $states;
@@ -156,7 +154,6 @@ class DynamicDataEncoder
 		$textCount = count($this->textCodes);
 
 		$token = new Token();
-		$token->addtoHistory([0,0,0]);
 		$this->states = [$token];
 
 		for ($index = 0; $index < $textCount; $index++) {
@@ -359,7 +356,7 @@ class DynamicDataEncoder
 
 		$symbols = $token->getPrevious();
 
-		$final = new BitArray();
+		$bstream = [];
 
 		foreach ($symbols as $symbol) {
 
@@ -370,24 +367,23 @@ class DynamicDataEncoder
 				# TODO: Add test coverage
 				for ($i = 0; $i < $bitCount; $i++) {
 					if ($i == 0 || ($i == 31 && $bitCount <= 62)) {
-						$final->append(31, 5);
+						$bstream[] = [31, 5];
 						if ($bitCount > 62) {
-							$final->append($bitCount - 31, 16);
+							$bstream[] = [$bitCount - 31, 16];
 						} elseif ($i == 0) {
-							$final->append(min($bitCount, 31), 5);
+							$bstream[] = [min($bitCount, 31), 5];
 						} else {
-							$final->append($bitCount - 31, 5);
+							$bstream[] = [$bitCount - 31, 5];
 						}
 					}
-					$final->append($this->textCodes[$value + $i], 8);
+					$bstream[] = [$this->textCodes[$value + $i], 8];
 				}
 
 			} elseif ($type == 0) { # SimpleToken
-				$final->append($value, $bitCount);
+				$bstream[] = [$value, $bitCount];
 			}
 		}
 
-		return $final;
+		return $bstream;
 	}
-
 }

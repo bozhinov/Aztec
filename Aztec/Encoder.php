@@ -42,6 +42,16 @@ class Encoder
 		$this->MATRIX[$x][$y] = 1;
 	}
 
+	private function toByte($bstream)
+	{
+		$dataStr = "";
+		foreach($bstream as $d){
+			$dataStr .= str_pad(decbin($d[0]), $d[1], "0", STR_PAD_LEFT);
+		}
+
+		return array_map('intval', str_split($dataStr));
+	}
+
 	public function encode(string $content, int $eccPercent = 33, $hint = "dynamic")
 	{
 		switch ($hint) {
@@ -56,10 +66,12 @@ class Encoder
 				break;
 		}
 
-		$bits = $dataEncoder->encode($content);
+		$bstream = $dataEncoder->encode($content);
+		$bits = $this->toByte($bstream);
+		$bitCount = count($bits);
 
-		$eccBits = intval($bits->getLength() * $eccPercent / 100 + 11);
-		$totalSizeBits = $bits->getLength() + $eccBits;
+		$eccBits = intval($bitCount * $eccPercent / 100 + 11);
+		$totalSizeBits = $bitCount + $eccBits;
 
 		$layers = 0;
 		$wordSize = 0;
@@ -100,23 +112,9 @@ class Encoder
 		}
 
 		$messageSizeInWords = intval(($stuffedBits->getLength() + $wordSize - 1) / $wordSize);
-		for ($i = $messageSizeInWords * $wordSize - $stuffedBits->getLength(); $i > 0; $i--) {
-			$stuffedBits->append(1);
-		}
 
 		// generate check words
-		$rs = new ReedSolomonEncoder($this->getGF($wordSize));
-		$totalSizeInFullWords = intval($totalSymbolBits / $wordSize);
-		$messageWords = $this->bitsToWords($stuffedBits, $wordSize, $totalSizeInFullWords);
-		$messageWords = $rs->encodePadded($messageWords, $totalSizeInFullWords - $messageSizeInWords);
-
-		// convert to bit array and pad in the beginning
-		$startPad = $totalSymbolBits % $wordSize;
-		$messageBits = new BitArray();
-		$messageBits->append(0, $startPad);
-		foreach ($messageWords as $messageWord) {
-			$messageBits->append($messageWord, $wordSize);
-		}
+		$messageBits = $this->generateCheckWords($stuffedBits, $totalSymbolBits, $wordSize);
 
 		// allocate symbol
 		if ($this->compact) {
@@ -318,16 +316,16 @@ class Encoder
 		}
 	}
 
-	private function stuffBits(BitArray $bits, $wordSize)
+	private function stuffBits($bits, $wordSize)
 	{
 		$out = new BitArray();
 
-		$n = $bits->getLength();
+		$n = count($bits);
 		$mask = (1 << $wordSize) - 2;
 		for ($i = 0; $i < $n; $i += $wordSize) {
 			$word = 0;
 			for ($j = 0; $j < $wordSize; $j++) {
-				if ($i + $j >= $n || $bits->get($i + $j)) {
+				if ($i + $j >= $n || $bits[$i + $j]) {
 					$word |= 1 << ($wordSize - 1 - $j);
 				}
 			}
