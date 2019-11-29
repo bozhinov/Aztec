@@ -153,8 +153,7 @@ class DynamicDataEncoder
 		$this->textCodes = array_values(unpack('C*', $data));
 		$textCount = count($this->textCodes);
 
-		$token = new Token();
-		$this->states = [$token];
+		$this->states = [new Token()];
 
 		for ($index = 0; $index < $textCount; $index++) {
 			$nextChar = (($index + 1 != $textCount) ? $this->textCodes[$index + 1] : 0);
