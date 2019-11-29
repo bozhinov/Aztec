@@ -70,17 +70,15 @@ class Encoder
 
 		$layers = 0;
 		$wordSize = 0;
-		$totalSymbolBits = 0;
 		$stuffedBits = null;
 		for ($layers = 1; $layers < $this->LAYERS_COMPACT; $layers++) {
-			if ($this->getBitsPerLayer($layers, false) >= $totalSizeBits) {
+			$bitsPerLayer = (88 + 16 * $layers) * $layers;
+			if ($bitsPerLayer >= $totalSizeBits) {
 				if ($wordSize != $this->wordSize[$layers]) {
 					$wordSize = $this->wordSize[$layers];
 					$stuffedBits = $this->stuffBits($bits, $wordSize);
 				}
-
-				$totalSymbolBits = $this->getBitsPerLayer($layers, false);
-				if ($stuffedBits->getLength() + $eccBits <= $totalSymbolBits) {
+				if ($stuffedBits->getLength() + $eccBits <= $bitsPerLayer) {
 					break;
 				}
 			}
@@ -89,13 +87,13 @@ class Encoder
 		if ($layers == $this->LAYERS_COMPACT) {
 			$this->compact = false;
 			for ($layers = 1; $layers < $this->LAYERS_FULL; $layers++) {
-				if ($this->getBitsPerLayer($layers, true) >= $totalSizeBits) {
+				$bitsPerLayer = (112 + 16 * $layers) * $layers;
+				if ($bitsPerLayer >= $totalSizeBits) {
 					if ($wordSize != $this->wordSize[$layers]) {
 						$wordSize = $this->wordSize[$layers];
 						$stuffedBits = $this->stuffBits($bits, $wordSize);
 					}
-					$totalSymbolBits = $this->getBitsPerLayer($layers, true);
-					if ($stuffedBits->getLength() + $eccBits <= $totalSymbolBits) {
+					if ($stuffedBits->getLength() + $eccBits <= $bitsPerLayer) {
 						break;
 					}
 				}
@@ -109,7 +107,7 @@ class Encoder
 		$messageSizeInWords = intval(($stuffedBits->getLength() + $wordSize - 1) / $wordSize);
 
 		// generate check words
-		$messageBits = $this->generateCheckWords($stuffedBits, $totalSymbolBits, $wordSize);
+		$messageBits = $this->generateCheckWords($stuffedBits, $bitsPerLayer, $wordSize);
 
 		// allocate symbol
 		if ($this->compact) {
@@ -267,15 +265,6 @@ class Encoder
 		}
 
 		return $messageBits;
-	}
-
-	private function getBitsPerLayer($layer, $full = true)
-	{
-		if ($full) {
-			return (112 + 16 * $layer) * $layer;
-		} else {
-			return (88 + 16 * $layer) * $layer;
-		}
 	}
 
 	private function bitsToWords(BitArray $stuffedBits, $wordSize, $totalWords)
