@@ -21,12 +21,10 @@ namespace Aztec\ReedSolomon;
 class ReedSolomonEncoder
 {
     private $field;
-    private $cachedGenerators;
 
     public function __construct($wordSize)
     {
         $this->field = $this->getGF($wordSize);
-        $this->cachedGenerators = [[1]];
     }
 
 	private function getGF($wordSize)
@@ -68,19 +66,17 @@ class ReedSolomonEncoder
         return $coefficients;
 	}
 
-    private function buildGenerator($degree)
+    private function buildGenerator($ecBytes)
     {
-        if ($degree >= count($this->cachedGenerators)) {
-            $lastGenerator = end($this->cachedGenerators);
-            for ($d = count($this->cachedGenerators); $d <= $degree; $d++) {
-                $nextCoefficent = $this->field->exp($d);
-                $nextGenerator = $this->multiply([1, $nextCoefficent], $lastGenerator);
-                $this->cachedGenerators[] = $nextGenerator;
-                $lastGenerator = $nextGenerator;
-            }
-        }
+		$lastGenerator = [1];
+		$Generators = [[$lastGenerator]];
+		for ($d = count($Generators); $d <= $ecBytes; $d++) {
+			$nextCoefficent = $this->field->exp($d);
+			$lastGenerator = $this->multiply([1, $nextCoefficent], $lastGenerator);
+			$Generators[] = $lastGenerator;
+		}
 
-		return [count($this->cachedGenerators[$degree]) - 1, $this->cachedGenerators[$degree]];	
+		return [$d, $Generators[$ecBytes]];	
     }
 
 	private function multiply(array $bCoefficients, array $aCoefficients)
@@ -99,7 +95,7 @@ class ReedSolomonEncoder
                 $product[$i + $j] ^= ($this->field->multiply($aCoeff, $bCoefficients[$j]));
             }
         }
-		
+
 		if ($this->isZero($product)) {
             throw new \InvalidArgumentException('Divide by 0');
         }
@@ -110,11 +106,6 @@ class ReedSolomonEncoder
 	private function isZero($coefficients)
     {
         return $coefficients[0] == 0;
-    }
-
-	private function getDegree($coefficients)
-    {
-        return count($coefficients) - 1;
     }
 
 	private function addOrSubtract(array $largerCoefficients, array $smallerCoefficients)
@@ -139,18 +130,20 @@ class ReedSolomonEncoder
 
 		return $this->getPoly($sumDiff);
     }
-	
+
 	private function multiplyByMonomial($degree, $coefficient, $coefficients)
     {
         if ($degree < 0) {
             throw new \InvalidArgumentException();
         }
         if ($coefficient == 0) {
-            return $this->getPoly([0]);
+            return [0];
         }
+		
+		$count = count($coefficients);
+        $product = array_fill(0, ($count + $degree), 0);
 
-        $product = array_fill(0, (count($coefficients) + $degree), 0);
-        for ($i = 0; $i < count($coefficients); $i++) {
+        for ($i = 0; $i < $count; $i++) {
             $product[$i] = $this->field->multiply($coefficients[$i], $coefficient);
         }
 
@@ -160,39 +153,35 @@ class ReedSolomonEncoder
     private function divide($ecBytes, $data)
     {
 		list($otherDegree, $otherCoefficient) = $this->buildGenerator($ecBytes);
-		
+
 		$one = $this->multiplyByMonomial($ecBytes, 1, $data);
 
-        while ($this->getDegree($one) >= $otherDegree && !$this->isZero($one)) {
-            $degreeDifference = $this->getDegree($one) - $otherDegree;
+        while (count($one) >= $otherDegree && !$this->isZero($one)) {
+            $degreeDifference = count($one) - $otherDegree;
             $scale = $this->field->multiply($one[0], 1);
             $largerCoefficients = $this->multiplyByMonomial($degreeDifference, $scale, $otherCoefficient);
-		
+
             $one = $this->addOrSubtract($largerCoefficients, $one);
         }
 
         return $one;
     }
 
-    private function encode(array $data, $ecBytes)
-    {
-        if ($ecBytes == 0) {
-            throw new \InvalidArgumentException('No error correction bytes');
-        }
-        if (count($data) == 0) {
-            throw new \InvalidArgumentException('No data bytes provided');
-        }
-
-        $coefficients = $this->divide($ecBytes, $data);
-        $paddedCoefficients = array_pad($coefficients, -$ecBytes, 0);
-
-        return array_merge($data, $paddedCoefficients);
-    }
-
     public function encodePadded(array $paddedData, $ecBytes)
     {
         $dataLength = count($paddedData) - $ecBytes;
 
-        return $this->encode(array_splice($paddedData, 0, $dataLength), $ecBytes);
+		if ($ecBytes == 0) {
+            throw new \InvalidArgumentException('No error correction bytes');
+        }
+        if ($dataLength == 0) {
+            throw new \InvalidArgumentException('No data bytes provided');
+        }
+
+        $data = array_splice($paddedData, 0, $dataLength);
+		$coefficients = $this->divide($ecBytes, $data);
+        $paddedCoefficients = array_pad($coefficients, -$ecBytes, 0);
+
+        return array_merge($data, $paddedCoefficients);
     }
 }

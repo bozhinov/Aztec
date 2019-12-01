@@ -35,7 +35,7 @@ class GenericGF
     private function initialize()
     {
         $this->expTable = array_fill(0, $this->size, 0);
-        $this->logTable = array_fill(0, $this->size, 0);
+        $this->logTable = $this->expTable;
         $x = 1;
         for ($i = 0; $i < $this->size; $i++) {
             $this->expTable[$i] = $x;
@@ -55,15 +55,6 @@ class GenericGF
         return $this->expTable[$a];
     }
 
-    public function log($a)
-    {
-        if ($a == 0) {
-            throw new \InvalidArgumentException();
-        }
-
-        return $this->logTable[$a];
-    }
-
     public function multiply($a, $b)
     {
         if ($a == 0 || $b == 0) {
@@ -73,12 +64,4 @@ class GenericGF
         return $this->expTable[($this->logTable[$a] + $this->logTable[$b]) % ($this->size - 1)];
     }
 
-    public function inverse($a)
-    {
-        if ($a == 0) {
-            return new \InvalidArgumentException();
-        }
-
-        return $this->expTable[($this->size - $this->logTable[$a] - 1)];
-    }
 }

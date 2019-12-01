@@ -181,7 +181,7 @@ class DynamicDataEncoder
 			} else {
 				$this->updateStateListForChar($index,$this->textCodes[$index]);
 			}
-			
+
 			$this->simplifyStates();
 		}
 
