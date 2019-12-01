@@ -21,7 +21,6 @@ namespace Aztec;
 use Aztec\Encoder\DynamicDataEncoder;
 use Aztec\Encoder\BinaryDataEncoder;
 use Aztec\ReedSolomon\ReedSolomonEncoder;
-use Aztec\BitArray;
 
 class Encoder
 {
@@ -50,6 +49,13 @@ class Encoder
 		}
 		return $data;
 	}
+
+	public function appendBstream(&$bstream, $data, $bits = 1)
+    {
+        for ($i = $bits - 1; $i >= 0; $i--) {
+            $bstream[] = ($data >> $i) & 1;
+        }
+    }
 
 	public function encode(string $content, int $eccPercent = 33, $hint = "dynamic")
 	{
@@ -201,14 +207,14 @@ class Encoder
 	private function drawModeMessage($center, $layers, $messageSizeInWords)
 	{
 		// generate mode message
-		$modeMessage = new BitArray();
+		$modeMessage = [];
 		if ($this->compact) {
-			$modeMessage->append($layers - 1, 2);
-			$modeMessage->append($messageSizeInWords - 1, 6);
+			$this->appendBstream($modeMessage, $layers - 1, 2);
+			$this->appendBstream($modeMessage, $messageSizeInWords - 1, 6);
 			$modeMessage = $this->generateCheckWords($modeMessage, 28, 4);
 		} else {
-			$modeMessage->append($layers - 1, 5);
-			$modeMessage->append($messageSizeInWords - 1, 11);
+			$this->appendBstream($modeMessage, $layers - 1, 5);
+			$this->appendBstream($modeMessage, $messageSizeInWords - 1, 11);
 			$modeMessage = $this->generateCheckWords($modeMessage, 40, 4);
 		}
 
@@ -245,11 +251,11 @@ class Encoder
 		}
 	}
 
-	private function generateCheckWords(BitArray $stuffedBits, $totalSymbolBits, $wordSize)
+	private function generateCheckWords(array $stuffedBits, $totalSymbolBits, $wordSize)
 	{
 		$messageSizeInWords = intval((count($stuffedBits) + $wordSize - 1) / $wordSize);
 		for ($i = $messageSizeInWords * $wordSize - count($stuffedBits); $i > 0; $i--) {
-			$stuffedBits->append(1);
+			$stuffedBits[] = 1;
 		}
 		$totalSizeInFullWords = intval($totalSymbolBits / $wordSize);
 		$messageWords = $this->bitsToWords($stuffedBits, $wordSize, $totalSizeInFullWords);
@@ -267,14 +273,14 @@ class Encoder
 		return $this->toByte($messageBits);
 	}
 
-	private function bitsToWords(BitArray $stuffedBits, $wordSize, $totalWords)
+	private function bitsToWords(array $stuffedBits, $wordSize, $totalWords)
 	{
 		$message = array_fill(0, $totalWords, 0);
 		$n = intval(count($stuffedBits) / $wordSize);
 		for ($i = 0; $i < $n; $i++) {
 			$value = 0;
 			for ($j = 0; $j < $wordSize; $j++) {
-				$value |= $stuffedBits->get($i * $wordSize + $j) ? (1 << $wordSize - $j - 1) : 0;
+				$value |= $stuffedBits[$i * $wordSize + $j] ? (1 << $wordSize - $j - 1) : 0;
 			}
 			$message[$i] = $value;
 		}
@@ -284,7 +290,7 @@ class Encoder
 
 	private function stuffBits($bits, $wordSize)
 	{
-		$out = new BitArray();
+		$out = [];
 
 		$n = count($bits);
 		$mask = (1 << $wordSize) - 2;
@@ -296,29 +302,32 @@ class Encoder
 				}
 			}
 			if (($word & $mask) == $mask) {
-				$out->append($word & $mask, $wordSize);
+				$out[] = [$word & $mask, $wordSize];
 				$i--;
 			} elseif (($word & $mask) == 0) {
-				$out->append($word | 1, $wordSize);
+				$out[] = [$word | 1, $wordSize];
 				$i--;
 			} else {
-				$out->append($word, $wordSize);
+				$out[] = [$word, $wordSize];
 			}
 		}
+		
+		$out = $this->toByte($out);
 
 		$n = count($out);
 		$remainder = $n % $wordSize;
+
 		if ($remainder != 0) {
 			$j = 1;
 			for ($i = 0; $i < $remainder; $i++) {
-				if (!$out->get($n - 1 - $i)) {
+				if (!$out[$n - 1 - $i]) {
 					$j = 0;
 				}
 			}
 			for ($i = $remainder; $i < $wordSize - 1; $i++) {
-				$out->append(1);
+				$out[] = 1;
 			}
-			$out->append((($j == 0) ? 1 : 0));
+			$out[] = ($j == 0) ? 1 : 0;
 		}
 
 		return $out;
