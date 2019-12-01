@@ -18,19 +18,11 @@
 
 namespace Aztec;
 
-class BitArray
+class BitArray implements \Countable
 {
-    private $data;
+    private $data = [];
 
-    public function __construct($length = 0)
-    {
-        $this->data = [];
-		if ($length != 0){
-			 $this->data = array_pad($this->data, $length, 0);
-		}
-    }
-
-    public function getLength()
+    public function count()
     {
         return count($this->data);
     }

@@ -79,7 +79,7 @@ class Encoder
 					$wordSize = $this->wordSize[$layers];
 					$stuffedBits = $this->stuffBits($bits, $wordSize);
 				}
-				if ($stuffedBits->getLength() + $eccBits <= $bitsPerLayer) {
+				if (count($stuffedBits) + $eccBits <= $bitsPerLayer) {
 					break;
 				}
 			}
@@ -94,7 +94,7 @@ class Encoder
 						$wordSize = $this->wordSize[$layers];
 						$stuffedBits = $this->stuffBits($bits, $wordSize);
 					}
-					if ($stuffedBits->getLength() + $eccBits <= $bitsPerLayer) {
+					if (count($stuffedBits) + $eccBits <= $bitsPerLayer) {
 						break;
 					}
 				}
@@ -105,7 +105,7 @@ class Encoder
 			throw new \InvalidArgumentException('Data too large');
 		}
 
-		$messageSizeInWords = intval(($stuffedBits->getLength() + $wordSize - 1) / $wordSize);
+		$messageSizeInWords = intval((count($stuffedBits) + $wordSize - 1) / $wordSize);
 
 		// generate check words
 		$messageBits = $this->generateCheckWords($stuffedBits, $bitsPerLayer, $wordSize);
@@ -143,16 +143,16 @@ class Encoder
 			for ($j = 0; $j < $rowSize; $j++) {
 				$columnOffset = $j * 2;
 				for ($k = 0; $k < 2; $k++) {
-					if ($messageBits->get($rowOffset + $columnOffset + $k)) {
+					if ($messageBits[$rowOffset + $columnOffset + $k]) {
 						$this->mSet($alignmentMap[$i * 2 + $k], $alignmentMap[$i * 2 + $j]);
 					}
-					if ($messageBits->get($rowOffset + $rowSize * 2 + $columnOffset + $k)) {
+					if ($messageBits[$rowOffset + $rowSize * 2 + $columnOffset + $k]) {
 						$this->mSet($alignmentMap[$i * 2 + $j], $alignmentMap[$baseMatrixSize - 1 - $i * 2 - $k]);
 					}
-					if ($messageBits->get($rowOffset + $rowSize * 4 + $columnOffset + $k)) {
+					if ($messageBits[$rowOffset + $rowSize * 4 + $columnOffset + $k]) {
 						$this->mSet($alignmentMap[$baseMatrixSize - 1 - $i * 2 - $k], $alignmentMap[$baseMatrixSize - 1 - $i * 2 - $j]);
 					}
-					if ($messageBits->get($rowOffset + $rowSize * 6 + $columnOffset + $k)) {
+					if ($messageBits[$rowOffset + $rowSize * 6 + $columnOffset + $k]) {
 						$this->mSet($alignmentMap[$baseMatrixSize - 1 - $i * 2 - $j], $alignmentMap[$i * 2 + $k]);
 					}
 				}
@@ -214,31 +214,31 @@ class Encoder
 
 		if ($this->compact) {
 			for ($i = 0; $i < 7; $i++) {
-				if ($modeMessage->get($i)) {
+				if ($modeMessage[$i]) {
 					$this->mSet($center - 3 + $i, $center - 5);
 				}
-				if ($modeMessage->get($i + 7)) {
+				if ($modeMessage[$i + 7]) {
 					$this->mSet($center + 5, $center - 3 + $i);
 				}
-				if ($modeMessage->get(20 - $i)) {
+				if ($modeMessage[20 - $i]) {
 					$this->mSet($center - 3 + $i, $center + 5);
 				}
-				if ($modeMessage->get(27 - $i)) {
+				if ($modeMessage[27 - $i]) {
 					$this->mSet($center - 5, $center - 3 + $i);
 				}
 			}
 		} else {
 			for ($i = 0; $i < 10; $i++) {
-				if ($modeMessage->get($i)) {
+				if ($modeMessage[$i]) {
 					$this->mSet($center - 5 + $i + intval($i / 5), $center - 7);
 				}
-				if ($modeMessage->get($i + 10)) {
+				if ($modeMessage[$i + 10]) {
 					$this->mSet($center + 7, $center - 5 + $i + intval($i / 5));
 				}
-				if ($modeMessage->get(29 - $i)) {
+				if ($modeMessage[29 - $i]) {
 					$this->mSet($center - 5 + $i + intval($i / 5), $center + 7);
 				}
-				if ($modeMessage->get(39 - $i)) {
+				if ($modeMessage[39 - $i]) {
 					$this->mSet($center - 7, $center - 5 + $i + intval($i / 5));
 				}
 			}
@@ -247,8 +247,8 @@ class Encoder
 
 	private function generateCheckWords(BitArray $stuffedBits, $totalSymbolBits, $wordSize)
 	{
-		$messageSizeInWords = intval(($stuffedBits->getLength() + $wordSize - 1) / $wordSize);
-		for ($i = $messageSizeInWords * $wordSize - $stuffedBits->getLength(); $i > 0; $i--) {
+		$messageSizeInWords = intval((count($stuffedBits) + $wordSize - 1) / $wordSize);
+		for ($i = $messageSizeInWords * $wordSize - count($stuffedBits); $i > 0; $i--) {
 			$stuffedBits->append(1);
 		}
 		$totalSizeInFullWords = intval($totalSymbolBits / $wordSize);
@@ -258,20 +258,19 @@ class Encoder
 		$messageWords = $rs->encodePadded($messageWords, $totalSizeInFullWords - $messageSizeInWords);
 
 		$startPad = $totalSymbolBits % $wordSize;
-		$messageBits = new BitArray();
-		$messageBits->append(0, $startPad);
+		$messageBits = [[0, $startPad]];
 
 		foreach ($messageWords as $messageWord) {
-			$messageBits->append($messageWord, $wordSize);
+			$messageBits[] = [$messageWord, $wordSize];
 		}
 
-		return $messageBits;
+		return $this->toByte($messageBits);
 	}
 
 	private function bitsToWords(BitArray $stuffedBits, $wordSize, $totalWords)
 	{
 		$message = array_fill(0, $totalWords, 0);
-		$n = intval($stuffedBits->getLength() / $wordSize);
+		$n = intval(count($stuffedBits) / $wordSize);
 		for ($i = 0; $i < $n; $i++) {
 			$value = 0;
 			for ($j = 0; $j < $wordSize; $j++) {
@@ -307,7 +306,7 @@ class Encoder
 			}
 		}
 
-		$n = $out->getLength();
+		$n = count($out);
 		$remainder = $n % $wordSize;
 		if ($remainder != 0) {
 			$j = 1;
