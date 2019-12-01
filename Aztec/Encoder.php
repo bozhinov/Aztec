@@ -20,7 +20,7 @@ namespace Aztec;
 
 use Aztec\Encoder\DynamicDataEncoder;
 use Aztec\Encoder\BinaryDataEncoder;
-use Aztec\ReedSolomon\ReedSolomonEncoder;
+use Aztec\ReedSolomonEncoder;
 
 class Encoder
 {

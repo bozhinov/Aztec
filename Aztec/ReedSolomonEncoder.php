@@ -16,15 +16,51 @@
  * limitations under the License.
  */
 
-namespace Aztec\ReedSolomon;
+namespace Aztec;
 
 class ReedSolomonEncoder
 {
-    private $field;
+    private $expTable;
+    private $logTable;
+    private $size;
 
     public function __construct($wordSize)
     {
-        $this->field = $this->getGF($wordSize);
+		list($primitive, $size) = $this->getGF($wordSize);
+        $this->size = $size;
+        $this->initialize($primitive, $size);
+    }
+
+    private function initialize($primitive, $size)
+    {
+        $this->expTable = array_fill(0, $size, 0);
+        $this->logTable = $this->expTable;
+        $x = 1;
+        for ($i = 0; $i < $size; $i++) {
+            $this->expTable[$i] = $x;
+            $x <<= 1;
+            if ($x >= $size) {
+                $x ^= $primitive;
+                $x &= ($size - 1);
+            }
+        }
+        for ($i = 0; $i < $size; $i++) {
+            $this->logTable[$this->expTable[$i]] = $i;
+        }
+    }
+
+    public function field_exp($a)
+    {
+        return $this->expTable[$a];
+    }
+
+    public function field_multiply($a, $b)
+    {
+        if ($a == 0 || $b == 0) {
+            return 0;
+        }
+
+        return $this->expTable[($this->logTable[$a] + $this->logTable[$b]) % ($this->size - 1)];
     }
 
 	private function getGF($wordSize)
@@ -54,7 +90,7 @@ class ReedSolomonEncoder
 				throw new \InvalidArgumentException("Word size of $wordSize was unexpected");
 		}
 
-		return new GenericGF($primitive, $size);
+		return [$primitive, $size];
 	}
 
 	private function getPoly(array $coefficients)
@@ -71,7 +107,7 @@ class ReedSolomonEncoder
 		$lastGenerator = [1];
 		$Generators = [[$lastGenerator]];
 		for ($d = count($Generators); $d <= $ecBytes; $d++) {
-			$nextCoefficent = $this->field->exp($d);
+			$nextCoefficent = $this->field_exp($d);
 			$lastGenerator = $this->multiply([1, $nextCoefficent], $lastGenerator);
 			$Generators[] = $lastGenerator;
 		}
@@ -92,7 +128,7 @@ class ReedSolomonEncoder
         for ($i = 0; $i < $aLength; $i++) {
             $aCoeff = $aCoefficients[$i];
             for ($j = 0; $j < $bLength; $j++) {
-                $product[$i + $j] ^= ($this->field->multiply($aCoeff, $bCoefficients[$j]));
+                $product[$i + $j] ^= ($this->field_multiply($aCoeff, $bCoefficients[$j]));
             }
         }
 
@@ -144,7 +180,7 @@ class ReedSolomonEncoder
         $product = array_fill(0, ($count + $degree), 0);
 
         for ($i = 0; $i < $count; $i++) {
-            $product[$i] = $this->field->multiply($coefficients[$i], $coefficient);
+            $product[$i] = $this->field_multiply($coefficients[$i], $coefficient);
         }
 
         return $this->getPoly($product);
@@ -158,7 +194,7 @@ class ReedSolomonEncoder
 
         while (count($one) >= $otherDegree && !$this->isZero($one)) {
             $degreeDifference = count($one) - $otherDegree;
-            $scale = $this->field->multiply($one[0], 1);
+            $scale = $this->field_multiply($one[0], 1);
             $largerCoefficients = $this->multiplyByMonomial($degreeDifference, $scale, $otherCoefficient);
 
             $one = $this->addOrSubtract($largerCoefficients, $one);
