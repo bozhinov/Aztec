@@ -18,8 +18,6 @@
 
 namespace Aztec\ReedSolomon;
 
-use Aztec\ReedSolomon\GenericGF;
-
 class ReedSolomonEncoder
 {
     private $field;
@@ -28,26 +26,46 @@ class ReedSolomonEncoder
     public function __construct($wordSize)
     {
         $this->field = $this->getGF($wordSize);
-        $this->cachedGenerators = [];
-        $this->cachedGenerators[] = new GenericGFPoly($this->field, [1]);
+        $this->cachedGenerators = [[1]];
     }
 
 	private function getGF($wordSize)
 	{
 		switch ($wordSize) {
 			case 4:
-				return GenericGF::getInstance(GenericGF::AZTEC_PARAM);
+				$primitive = 0x13;
+				$size = 16;
+				break;
 			case 6:
-				return GenericGF::getInstance(GenericGF::AZTEC_DATA_6);
+				$primitive = 0x43;
+				$size = 64;
+				break;
 			case 8:
-				return GenericGF::getInstance(GenericGF::AZTEC_DATA_8);
+				$primitive = 0x012D;
+				$size = 256;
+				break;
 			case 10:
-				return GenericGF::getInstance(GenericGF::AZTEC_DATA_10);
+				$primitive = 0x409;
+				$size = 1024;
+				break;
 			case 12:
-				return GenericGF::getInstance(GenericGF::AZTEC_DATA_12);
+				$primitive = 0x1069;
+				$size = 4096;
+				break;
 			default:
-				return null;
+				throw new \InvalidArgumentException("Word size of $wordSize was unexpected");
 		}
+
+		return new GenericGF($primitive, $size);
+	}
+
+	private function getPoly(array $coefficients)
+	{
+        while (!empty($coefficients) && $coefficients[0] == 0) {
+            array_shift($coefficients);
+        }
+
+        return $coefficients;
 	}
 
     private function buildGenerator($degree)
@@ -55,17 +73,108 @@ class ReedSolomonEncoder
         if ($degree >= count($this->cachedGenerators)) {
             $lastGenerator = end($this->cachedGenerators);
             for ($d = count($this->cachedGenerators); $d <= $degree; $d++) {
-                $nextCoefficent = $this->field->exp($d - 1 + $this->field->getGeneratorBase());
-                $nextGenerator = $lastGenerator->multiply(new GenericGFPoly($this->field, [1, $nextCoefficent]));
+                $nextCoefficent = $this->field->exp($d);
+                $nextGenerator = $this->multiply([1, $nextCoefficent], $lastGenerator);
                 $this->cachedGenerators[] = $nextGenerator;
                 $lastGenerator = $nextGenerator;
             }
         }
 
-        return $this->cachedGenerators[$degree];
+		return [count($this->cachedGenerators[$degree]) - 1, $this->cachedGenerators[$degree]];	
     }
 
-    public function encode(array $data, $ecBytes)
+	private function multiply(array $bCoefficients, array $aCoefficients)
+    {
+        if ($this->isZero($aCoefficients) || $this->isZero($bCoefficients)) {
+            return [0];
+        }
+
+        $aLength = count($aCoefficients);
+        $bLength = count($bCoefficients);
+        $product = array_fill(0, ($aLength + $bLength - 1), 0);
+
+        for ($i = 0; $i < $aLength; $i++) {
+            $aCoeff = $aCoefficients[$i];
+            for ($j = 0; $j < $bLength; $j++) {
+                $product[$i + $j] ^= ($this->field->multiply($aCoeff, $bCoefficients[$j]));
+            }
+        }
+		
+		if ($this->isZero($product)) {
+            throw new \InvalidArgumentException('Divide by 0');
+        }
+
+		return $this->getPoly($product);
+    }
+
+	private function isZero($coefficients)
+    {
+        return $coefficients[0] == 0;
+    }
+
+	private function getDegree($coefficients)
+    {
+        return count($coefficients) - 1;
+    }
+
+	private function addOrSubtract(array $largerCoefficients, array $smallerCoefficients)
+    {
+        if ($this->isZero($smallerCoefficients)) {
+            return $largerCoefficients;
+        }
+        if ($this->isZero($largerCoefficients)) {
+            return $smallerCoefficients;
+        }
+
+        if (count($smallerCoefficients) > count($largerCoefficients)) {
+            list($smallerCoefficients, $largerCoefficients) = [$largerCoefficients, $smallerCoefficients];
+        }
+
+        $lengthDiff = count($largerCoefficients) - count($smallerCoefficients);
+        $sumDiff = array_slice($largerCoefficients, 0, $lengthDiff);
+
+        for ($i = $lengthDiff; $i < count($largerCoefficients); $i++) {
+            $sumDiff[$i] = $smallerCoefficients[$i - $lengthDiff] ^ $largerCoefficients[$i];
+        }
+
+		return $this->getPoly($sumDiff);
+    }
+	
+	private function multiplyByMonomial($degree, $coefficient, $coefficients)
+    {
+        if ($degree < 0) {
+            throw new \InvalidArgumentException();
+        }
+        if ($coefficient == 0) {
+            return $this->getPoly([0]);
+        }
+
+        $product = array_fill(0, (count($coefficients) + $degree), 0);
+        for ($i = 0; $i < count($coefficients); $i++) {
+            $product[$i] = $this->field->multiply($coefficients[$i], $coefficient);
+        }
+
+        return $this->getPoly($product);
+    }
+
+    private function divide($ecBytes, $data)
+    {
+		list($otherDegree, $otherCoefficient) = $this->buildGenerator($ecBytes);
+		
+		$one = $this->multiplyByMonomial($ecBytes, 1, $data);
+
+        while ($this->getDegree($one) >= $otherDegree && !$this->isZero($one)) {
+            $degreeDifference = $this->getDegree($one) - $otherDegree;
+            $scale = $this->field->multiply($one[0], 1);
+            $largerCoefficients = $this->multiplyByMonomial($degreeDifference, $scale, $otherCoefficient);
+		
+            $one = $this->addOrSubtract($largerCoefficients, $one);
+        }
+
+        return $one;
+    }
+
+    private function encode(array $data, $ecBytes)
     {
         if ($ecBytes == 0) {
             throw new \InvalidArgumentException('No error correction bytes');
@@ -74,12 +183,7 @@ class ReedSolomonEncoder
             throw new \InvalidArgumentException('No data bytes provided');
         }
 
-        $generator = $this->buildGenerator($ecBytes);
-        $info = new GenericGFPoly($this->field, $data);
-        $info = $info->multiplyByMonomial($ecBytes, 1);
-
-        $remainder = $info->divide($generator);
-        $coefficients = $remainder->getCoefficients();
+        $coefficients = $this->divide($ecBytes, $data);
         $paddedCoefficients = array_pad($coefficients, -$ecBytes, 0);
 
         return array_merge($data, $paddedCoefficients);

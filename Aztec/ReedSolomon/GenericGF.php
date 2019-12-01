@@ -20,43 +20,16 @@ namespace Aztec\ReedSolomon;
 
 class GenericGF
 {
-    const AZTEC_DATA_12 = 1; // x^12 + x^6 + x^5 + x^3 + 1
-    const AZTEC_DATA_10 = 2; // x^10 + x^3 + 1
-    const AZTEC_DATA_8 = 3; // x^8 + x^5 + x^3 + x^2 + 1
-    const AZTEC_DATA_6 = 4; // x^6 + x + 1
-    const AZTEC_PARAM = 5; // x^4 + x + 1
-
     private $expTable;
     private $logTable;
     private $primitive;
     private $size;
-    private $generatorBase;
 
-    public function __construct($primitive, $size, $generatorBase)
+    public function __construct($primitive, $size)
     {
         $this->primitive = $primitive;
         $this->size = $size;
-        $this->generatorBase = $generatorBase;
-
         $this->initialize();
-    }
-
-    public static function getInstance($type)
-    {
-        switch ($type) {
-            case self::AZTEC_DATA_12:
-                return new self(0x1069, 4096, 1);
-            case self::AZTEC_DATA_10:
-                return new self(0x409, 1024, 1);
-            case self::AZTEC_DATA_8:
-                return new self(0x012D, 256, 1);
-            case self::AZTEC_DATA_6:
-                return new self(0x43, 64, 1);
-            case self::AZTEC_PARAM:
-                return new self(0x13, 16, 1);
-            default:
-                throw new \InvalidArgumentException('No such type defined');
-        }
     }
 
     private function initialize()
@@ -107,44 +80,5 @@ class GenericGF
         }
 
         return $this->expTable[($this->size - $this->logTable[$a] - 1)];
-    }
-
-    public function buildMonomial($degree, $coefficient)
-    {
-        if ($degree < 0) {
-            throw new \InvalidArgumentException();
-        }
-        if ($coefficient == 0) {
-            return $this->getZero();
-        }
-
-        $coefficients = array_fill(0, ($degree + 1), 0);
-        $coefficients[0] = $coefficient;
-
-        return new GenericGFPoly($this, $coefficients);
-    }
-
-    public function getSize()
-    {
-        return $this->size;
-    }
-
-    public function getGeneratorBase()
-    {
-        return $this->generatorBase;
-    }
-
-    public function getZero()
-    {
-        return new GenericGFPoly($this, array(0));
-    }
-
-    public static function addOrSubtract($a, $b)
-    {
-        if (!is_int($a) || !is_int($b)) {
-            throw new \InvalidArgumentException('Can not add or substract non-integers');
-        }
-
-        return $a ^ $b;
     }
 }
