@@ -16,11 +16,11 @@
 * limitations under the License.
 */
 
-namespace Aztec;
+namespace Aztec\Encoder;
 
-use Aztec\EncoderBinary;
-use Aztec\EncoderDynamic;
-use Aztec\EncoderReedSolomon;
+use Aztec\Encoder\Binary;
+use Aztec\Encoder\Dynamic;
+use Aztec\Encoder\ReedSolomon;
 
 class Encoder
 {
@@ -61,10 +61,10 @@ class Encoder
 	{
 		switch ($hint) {
 			case "dynamic":
-				$encoder = new EncoderDynamic();
+				$encoder = new Dynamic();
 				break;
 			case "binary":
-				$encoder = new EncoderBinary();
+				$encoder = new Binary();
 				break;
 		}
 
@@ -260,7 +260,7 @@ class Encoder
 		$totalSizeInFullWords = intval($totalSymbolBits / $wordSize);
 		$messageWords = $this->bitsToWords($stuffedBits, $wordSize, $totalSizeInFullWords);
 
-		$rs = new EncoderReedSolomon($wordSize);
+		$rs = new ReedSolomon($wordSize);
 		$messageWords = $rs->encodePadded($messageWords, $totalSizeInFullWords - $messageSizeInWords);
 
 		$startPad = $totalSymbolBits % $wordSize;

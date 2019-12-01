@@ -1,8 +1,8 @@
 <?php
 
-namespace Aztec;
+namespace Aztec\Encoder;
 
-class EncoderBinary {
+class Binary {
 
     public function encode($data)
     {

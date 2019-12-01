@@ -1,8 +1,8 @@
 <?php
 
-namespace Aztec;
+namespace Aztec\Encoder;
 
-class EncoderDynamicToken implements \Countable
+class Token implements \Countable
 {
 	private $previous = [];
 	private $mode = 0;

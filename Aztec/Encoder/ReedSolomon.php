@@ -16,9 +16,9 @@
  * limitations under the License.
  */
 
-namespace Aztec;
+namespace Aztec\Encoder;
 
-class EncoderReedSolomon
+class ReedSolomon
 {
     private $expTable;
     private $logTable;
