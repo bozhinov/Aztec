@@ -18,10 +18,6 @@
 
 namespace Aztec\Encoder;
 
-use Aztec\Encoder\Binary;
-use Aztec\Encoder\Dynamic;
-use Aztec\Encoder\ReedSolomon;
-
 class Encoder
 {
 	private $LAYERS_COMPACT = 5;
