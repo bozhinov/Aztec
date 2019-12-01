@@ -2,10 +2,7 @@
 
 namespace Aztec;
 
-use Aztec\azColor;
-use Aztec\azException;
 use Aztec\Encoder\Encoder;
-use Aztec\Renderer;
 
 class Aztec
 {
