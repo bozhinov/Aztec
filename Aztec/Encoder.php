@@ -42,12 +42,13 @@ class Encoder
 
 	private function toByte($bstream)
 	{
-		$dataStr = "";
+		$data = [];
 		foreach($bstream as $d){
-			$dataStr .= str_pad(decbin($d[0]), $d[1], "0", STR_PAD_LEFT);
+			for ($i = $d[1] - 1; $i >= 0; $i--) {
+				$data[] = ($d[0] >> $i) & 1;
+			}
 		}
-
-		return array_map('intval', str_split($dataStr));
+		return $data;
 	}
 
 	public function encode(string $content, int $eccPercent = 33, $hint = "dynamic")
