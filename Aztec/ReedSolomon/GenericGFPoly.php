@@ -61,11 +61,6 @@ class GenericGFPoly
         return $this->coefficients[0] == 0;
     }
 
-    public function getCoefficient($degree)
-    {
-        return $this->coefficients[count($this->coefficients) - 1 - $degree];
-    }
-
     public function addOrSubtract(GenericGFPoly $other)
     {
         if ($other->getField() != $this->field) {
@@ -136,13 +131,6 @@ class GenericGFPoly
         return new self($this->field, $product);
     }
 
-	private function checkType($number)
-    {
-        if (!is_int($number) && !is_float($number) && !($number instanceof GenericGFPoly)) {
-            throw new \InvalidArgumentException('Non-numbers are not allowed');
-        }
-    }
-
     public function divide(GenericGFPoly $other)
     {
         if ($other->getField() != $this->field) {
@@ -152,22 +140,17 @@ class GenericGFPoly
             throw new \InvalidArgumentException('Divide by 0');
         }
 
-      #  $quotient = $this->field->getZero();
         $remainder = $this;
 
-        $denominatorLeadingTerm = $other->getCoefficient($other->getDegree());
-        $inverseDenominatorLeadingTerm = $this->field->inverse($denominatorLeadingTerm);
-        while ($remainder->getDegree() >= $other->getDegree() && !$remainder->isZero()) {
-            $degreeDifference = $remainder->getDegree() - $other->getDegree();
-            $scale = $this->field->multiply($remainder->getCoefficient($remainder->getDegree()), $inverseDenominatorLeadingTerm);
+		$otherDegree = $other->getDegree();
+
+        while ($remainder->getDegree() >= $otherDegree && !$remainder->isZero()) {
+            $degreeDifference = $remainder->getDegree() - $otherDegree;
+            $scale = $this->field->multiply($remainder->getCoefficients()[0], 1);
             $term = $other->multiplyByMonomial($degreeDifference, $scale);
             $iterationQuotient = $this->field->buildMonomial($degreeDifference, $scale);
-           # $quotient = $quotient->addOrSubtract($iterationQuotient);
             $remainder = $remainder->addOrSubtract($term);
         }
-
-		#$this->checkType($quotient);
-		$this->checkType($remainder);
 
         return $remainder;
     }
