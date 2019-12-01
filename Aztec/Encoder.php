@@ -311,7 +311,7 @@ class Encoder
 				$out[] = [$word, $wordSize];
 			}
 		}
-		
+
 		$out = $this->toByte($out);
 
 		$n = count($out);
@@ -327,7 +327,7 @@ class Encoder
 			for ($i = $remainder; $i < $wordSize - 1; $i++) {
 				$out[] = 1;
 			}
-			$out[] = ($j == 0) ? 1 : 0;
+			$out[] = ($j ^ 1);
 		}
 
 		return $out;
