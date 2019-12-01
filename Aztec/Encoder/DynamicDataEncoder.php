@@ -187,7 +187,7 @@ class DynamicDataEncoder
 
 		$minState = $this->states[0];
 		foreach ($this->states as $state) {
-			if ($state->getBitCount() < $minState->getBitCount()) {
+			if (count($state) < count($minState)) {
 				$minState = $state;
 			}
 		}
@@ -274,12 +274,12 @@ class DynamicDataEncoder
 
 	private function isBetterThanOrEqualTo($one, $other)
 	{
-		$mySize = $one->getBitCount() + ($this->getLatch($one->getMode(), $other->getMode()) >> 16);
+		$mySize = count($one) + ($this->getLatch($one->getMode(), $other->getMode()) >> 16);
 		if ($other->getShiftByteCount() > 0 && ($one->getShiftByteCount() == 0 || $one->getShiftByteCount() > $other->getShiftByteCount())) {
 			$mySize += 10;
 		}
 
-		return $mySize <= $other->getBitCount();
+		return $mySize <= count($other);
 	}
 
 	private function shiftAndAppend($token, $mode, $value)
@@ -288,7 +288,7 @@ class DynamicDataEncoder
 		$thisModeBitCount = ($current_mode == $this->MODE_DIGIT ? 4 : 5);
 		$token = $token->add($this->getShift($current_mode, $mode), $thisModeBitCount);
 		$token = $token->add($value, 5);
-		$bitCount = $token->getBitCount();
+		$bitCount = count($token);
 
 		$token->setState($current_mode, 0, $bitCount + $thisModeBitCount + 5);
 		return $token;
@@ -296,7 +296,7 @@ class DynamicDataEncoder
 
 	private function latchAndAppend($token, $mode, $value)
 	{
-		$bitCount = $token->getBitCount();
+		$bitCount = count($token);
 		$current_mode = $token->getMode();
 
 		if ($mode != $current_mode) {
@@ -314,7 +314,7 @@ class DynamicDataEncoder
 	private function addBinaryShiftChar($token, $index)
 	{
 		$current_mode = $token->getMode();
-		$bitCount = $token->getBitCount();
+		$bitCount = count($token);
 
 		if ($current_mode == $this->MODE_PUNCT || $current_mode == $this->MODE_DIGIT) {
 			$latch = $this->getLatch($current_mode, $this->MODE_UPPER);

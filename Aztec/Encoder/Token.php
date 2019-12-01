@@ -2,7 +2,7 @@
 
 namespace Aztec\Encoder;
 
-class Token
+class Token implements \Countable
 {
 	private $previous = [];
 	private $mode = 0;
@@ -26,7 +26,7 @@ class Token
 		return $this->shiftByteCount;
 	}
 
-	public function getBitCount()
+	public function count()
 	{
 		return $this->bitCount;
 	}
