@@ -18,7 +18,7 @@
 
 namespace Aztec;
 
-class ReedSolomonEncoder
+class EncoderReedSolomon
 {
     private $expTable;
     private $logTable;

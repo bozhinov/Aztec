@@ -16,9 +16,9 @@
 * limitations under the License.
 */
 
-namespace Aztec\Encoder;
+namespace Aztec;
 
-class DynamicDataEncoder
+class EncoderDynamic
 {
 	private $states;
 	private $charMap;
@@ -153,7 +153,7 @@ class DynamicDataEncoder
 		$this->textCodes = array_values(unpack('C*', $data));
 		$textCount = count($this->textCodes);
 
-		$this->states = [new Token()];
+		$this->states = [new EncoderDynamicToken()];
 
 		for ($index = 0; $index < $textCount; $index++) {
 			$nextChar = (($index + 1 != $textCount) ? $this->textCodes[$index + 1] : 0);

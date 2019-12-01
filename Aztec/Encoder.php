@@ -18,9 +18,8 @@
 
 namespace Aztec;
 
-use Aztec\Encoder\DynamicDataEncoder;
-use Aztec\Encoder\BinaryDataEncoder;
-use Aztec\ReedSolomonEncoder;
+use Aztec\EncoderDynamic;
+use Aztec\EncoderReedSolomon;
 
 class Encoder
 {
@@ -33,6 +32,32 @@ class Encoder
 		10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
 		10, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12,
 	];
+	
+	public function EncoderBinary($data)
+    {
+		$data = array_values(unpack('C*', $data));
+		$len = count($data);
+
+		# CODE_UPPER_BS = 31;	
+		$bstream = [[31, 5]];
+
+		# Used to split the string in (2048 + 32 - 1) long pieces
+		# Barcode can't store that much anyway
+		if ($len >= 32) {
+			$bstream[] = [0, 5];
+			# Used to be $len - 32 but that resulted 
+			# in AK at the end of the decoded string
+			$bstream[] = [($len - 31), 11];
+        } else {
+			$bstream[] = [$len, 5];
+        }
+
+		foreach($data as $ord){
+			$bstream[] = [$ord, 8];
+		}
+
+        return $bstream;
+    }
 
 	private function mSet($x, $y)
 	{
@@ -61,14 +86,13 @@ class Encoder
 	{
 		switch ($hint) {
 			case "dynamic":
-				$dataEncoder = new DynamicDataEncoder();
+				$bstream = (new EncoderDynamic())->encode($content);
 				break;
 			case "binary":
-				$dataEncoder = new BinaryDataEncoder();
+				$bstream = $this->EncoderBinary($content);
 				break;
 		}
 
-		$bstream = $dataEncoder->encode($content);
 		$bits = $this->toByte($bstream);
 		$bitCount = count($bits);
 
@@ -260,7 +284,7 @@ class Encoder
 		$totalSizeInFullWords = intval($totalSymbolBits / $wordSize);
 		$messageWords = $this->bitsToWords($stuffedBits, $wordSize, $totalSizeInFullWords);
 
-		$rs = new ReedSolomonEncoder($wordSize);
+		$rs = new EncoderReedSolomon($wordSize);
 		$messageWords = $rs->encodePadded($messageWords, $totalSizeInFullWords - $messageSizeInWords);
 
 		$startPad = $totalSymbolBits % $wordSize;
