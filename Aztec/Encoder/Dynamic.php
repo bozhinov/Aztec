@@ -241,7 +241,7 @@ class Dynamic
 			}
 			if ($state->getShiftByteCount() > 0) {
 				$interm = $this->addBinaryShiftChar($state, $index);
-				$result[] = $this->addBinaryShiftChar($interm + 1);
+				$result[] = $this->addBinaryShiftChar($interm, $index + 1);
 			}
 		}
 
