@@ -20,15 +20,7 @@ namespace Aztec\Encoder;
 
 class Encoder
 {
-	private $LAYERS_COMPACT = 5;
-	private $LAYERS_FULL = 33;
 	private $MATRIX;
-	private $compact = true;
-	private $wordSize = [
-		4,  6,  6,  8,  8,  8,  8,  8,  8, 10, 10,
-		10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
-		10, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12,
-	];
 
 	private function mSet($x, $y)
 	{
@@ -46,7 +38,7 @@ class Encoder
 		return $data;
 	}
 
-	public function appendBstream(&$bstream, $data, $bits = 1)
+	public function appendBstream(&$bstream, $data, $bits)
     {
         for ($i = $bits - 1; $i >= 0; $i--) {
             $bstream[] = ($data >> $i) & 1;
@@ -55,6 +47,16 @@ class Encoder
 
 	public function encode(string $content, int $eccPercent = 33, $hint = "dynamic")
 	{
+		$LAYERS_COMPACT = 5;
+		$LAYERS_FULL = 33;
+
+		$compact = true;
+		$wordSizeDict = [
+			4,  6,  6,  8,  8,  8,  8,  8,  8, 10, 10,
+			10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+			10, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12,
+		];
+
 		switch ($hint) {
 			case "dynamic":
 				$encoder = new Dynamic();
@@ -75,11 +77,11 @@ class Encoder
 
 		$wordSize = 0;
 		$stuffedBits = [];
-		for ($layers = 1; $layers < $this->LAYERS_COMPACT; $layers++) {
+		for ($layers = 1; $layers < $LAYERS_COMPACT; $layers++) {
 			$bitsPerLayer = (88 + 16 * $layers) * $layers;
 			if ($bitsPerLayer >= $totalSizeBits) {
-				if ($wordSize != $this->wordSize[$layers]) {
-					$wordSize = $this->wordSize[$layers];
+				if ($wordSize != $wordSizeDict[$layers]) {
+					$wordSize = $wordSizeDict[$layers];
 					$stuffedBits = $this->stuffBits($bits, $wordSize);
 				}
 				if (count($stuffedBits) + $eccBits <= $bitsPerLayer) {
@@ -88,13 +90,13 @@ class Encoder
 			}
 		}
 
-		if ($layers == $this->LAYERS_COMPACT) {
-			$this->compact = false;
-			for ($layers = 1; $layers < $this->LAYERS_FULL; $layers++) {
+		if ($layers == $LAYERS_COMPACT) {
+			$compact = false;
+			for ($layers = 1; $layers < $LAYERS_FULL; $layers++) {
 				$bitsPerLayer = (112 + 16 * $layers) * $layers;
 				if ($bitsPerLayer >= $totalSizeBits) {
-					if ($wordSize != $this->wordSize[$layers]) {
-						$wordSize = $this->wordSize[$layers];
+					if ($wordSize != $wordSizeDict[$layers]) {
+						$wordSize = $wordSizeDict[$layers];
 						$stuffedBits = $this->stuffBits($bits, $wordSize);
 					}
 					if (count($stuffedBits) + $eccBits <= $bitsPerLayer) {
@@ -104,17 +106,15 @@ class Encoder
 			}
 		}
 
-		if ($layers == $this->LAYERS_FULL) {
+		if ($layers == $LAYERS_FULL) {
 			throw new \InvalidArgumentException('Data too large');
 		}
-
-		$messageSizeInWords = intval((count($stuffedBits) + $wordSize - 1) / $wordSize);
 
 		// generate check words
 		$messageBits = $this->generateCheckWords($stuffedBits, $bitsPerLayer, $wordSize);
 
 		// allocate symbol
-		if ($this->compact) {
+		if ($compact) {
 			$matrixSize = $baseMatrixSize = 11 + $layers * 4;
 			$center = intval($matrixSize / 2);
 			$alignmentMap = [];
@@ -138,7 +138,7 @@ class Encoder
 
 		// draw mode and data bits
 		for ($i = 0, $rowOffset = 0; $i < $layers; $i++) {
-			if ($this->compact) {
+			if ($compact) {
 				$rowSize = ($layers - $i) * 4 + 9;
 			} else {
 				$rowSize = ($layers - $i) * 4 + 12;
@@ -163,12 +163,52 @@ class Encoder
 			$rowOffset += $rowSize * 8;
 		}
 
-		$this->drawModeMessage($center, $layers, $messageSizeInWords);
+		// generate mode message
+		$messageSizeInWords = intval((count($stuffedBits) + $wordSize - 1) / $wordSize);
+		$modeMessage = [];
+		if ($compact) {
+			$this->appendBstream($modeMessage, $layers - 1, 2);
+			$this->appendBstream($modeMessage, $messageSizeInWords - 1, 6);
+			$modeMessage = $this->generateCheckWords($modeMessage, 28, 4);
 
-		// draw alignment marks
-		if ($this->compact) {
+			for ($i = 0; $i < 7; $i++) {
+				if ($modeMessage[$i]) {
+					$this->mSet($center - 3 + $i, $center - 5);
+				}
+				if ($modeMessage[$i + 7]) {
+					$this->mSet($center + 5, $center - 3 + $i);
+				}
+				if ($modeMessage[20 - $i]) {
+					$this->mSet($center - 3 + $i, $center + 5);
+				}
+				if ($modeMessage[27 - $i]) {
+					$this->mSet($center - 5, $center - 3 + $i);
+				}
+			}
+			// draw alignment marks
 			$this->drawBullsEye($center, 5);
+
 		} else {
+			$this->appendBstream($modeMessage, $layers - 1, 5);
+			$this->appendBstream($modeMessage, $messageSizeInWords - 1, 11);
+			$modeMessage = $this->generateCheckWords($modeMessage, 40, 4);
+
+			for ($i = 0; $i < 10; $i++) {
+				if ($modeMessage[$i]) {
+					$this->mSet($center - 5 + $i + intval($i / 5), $center - 7);
+				}
+				if ($modeMessage[$i + 10]) {
+					$this->mSet($center + 7, $center - 5 + $i + intval($i / 5));
+				}
+				if ($modeMessage[29 - $i]) {
+					$this->mSet($center - 5 + $i + intval($i / 5), $center + 7);
+				}
+				if ($modeMessage[39 - $i]) {
+					$this->mSet($center - 7, $center - 5 + $i + intval($i / 5));
+				}
+			}
+
+			// draw alignment marks
 			$this->drawBullsEye($center, 7);
 			for ($i = 0, $j = 0; $i < intval($baseMatrixSize / 2) - 1; $i += 15, $j += 16) {
 				for ($k = $center & 1; $k < $matrixSize; $k += 2) {
@@ -201,64 +241,17 @@ class Encoder
 		$this->mSet($center + $size, $center + $size - 1);
 	}
 
-	private function drawModeMessage($center, $layers, $messageSizeInWords)
-	{
-		// generate mode message
-		$modeMessage = [];
-		if ($this->compact) {
-			$this->appendBstream($modeMessage, $layers - 1, 2);
-			$this->appendBstream($modeMessage, $messageSizeInWords - 1, 6);
-			$modeMessage = $this->generateCheckWords($modeMessage, 28, 4);
-		} else {
-			$this->appendBstream($modeMessage, $layers - 1, 5);
-			$this->appendBstream($modeMessage, $messageSizeInWords - 1, 11);
-			$modeMessage = $this->generateCheckWords($modeMessage, 40, 4);
-		}
-
-		if ($this->compact) {
-			for ($i = 0; $i < 7; $i++) {
-				if ($modeMessage[$i]) {
-					$this->mSet($center - 3 + $i, $center - 5);
-				}
-				if ($modeMessage[$i + 7]) {
-					$this->mSet($center + 5, $center - 3 + $i);
-				}
-				if ($modeMessage[20 - $i]) {
-					$this->mSet($center - 3 + $i, $center + 5);
-				}
-				if ($modeMessage[27 - $i]) {
-					$this->mSet($center - 5, $center - 3 + $i);
-				}
-			}
-		} else {
-			for ($i = 0; $i < 10; $i++) {
-				if ($modeMessage[$i]) {
-					$this->mSet($center - 5 + $i + intval($i / 5), $center - 7);
-				}
-				if ($modeMessage[$i + 10]) {
-					$this->mSet($center + 7, $center - 5 + $i + intval($i / 5));
-				}
-				if ($modeMessage[29 - $i]) {
-					$this->mSet($center - 5 + $i + intval($i / 5), $center + 7);
-				}
-				if ($modeMessage[39 - $i]) {
-					$this->mSet($center - 7, $center - 5 + $i + intval($i / 5));
-				}
-			}
-		}
-	}
-
 	private function generateCheckWords(array $stuffedBits, $totalSymbolBits, $wordSize)
 	{
 		$messageSizeInWords = intval((count($stuffedBits) + $wordSize - 1) / $wordSize);
 		for ($i = $messageSizeInWords * $wordSize - count($stuffedBits); $i > 0; $i--) {
 			$stuffedBits[] = 1;
 		}
-		$totalSizeInFullWords = intval($totalSymbolBits / $wordSize);
-		$messageWords = $this->bitsToWords($stuffedBits, $wordSize, $totalSizeInFullWords);
+		$totalWords = intval($totalSymbolBits / $wordSize);
+		$messageWords = $this->bitsToWords($stuffedBits, $wordSize, $totalWords);
 
 		$rs = new ReedSolomon($wordSize);
-		$messageWords = $rs->encodePadded($messageWords, $totalSizeInFullWords - $messageSizeInWords);
+		$messageWords = $rs->encodePadded($messageWords, $totalWords - $messageSizeInWords);
 
 		$startPad = $totalSymbolBits % $wordSize;
 		$messageBits = [[0, $startPad]];
