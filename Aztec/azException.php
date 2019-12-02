@@ -19,5 +19,3 @@ class azException extends \Exception
 		return new static(sprintf('Aztec: %s', $text));
 	}
 }
-
-?>

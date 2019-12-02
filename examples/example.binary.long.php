@@ -14,5 +14,3 @@ $aztec->encode($text);
 
 // Create a PNG image
 $aztec->toFile('temp/example.binary.long.png');
-
-?>

@@ -62,6 +62,8 @@ class Encoder
 			case "binary":
 				$encoder = new Binary();
 				break;
+			default:
+				throw new \InvalidArgumentException('Unknown encoder');
 		}
 
 		$bstream = $encoder->encode($content);
@@ -71,9 +73,8 @@ class Encoder
 		$eccBits = intval($bitCount * $eccPercent / 100 + 11);
 		$totalSizeBits = $bitCount + $eccBits;
 
-		$layers = 0;
 		$wordSize = 0;
-		$stuffedBits = null;
+		$stuffedBits = [];
 		for ($layers = 1; $layers < $this->LAYERS_COMPACT; $layers++) {
 			$bitsPerLayer = (88 + 16 * $layers) * $layers;
 			if ($bitsPerLayer >= $totalSizeBits) {

@@ -13,5 +13,3 @@ $aztec->encode($text);
 
 // Create a PNG image
 file_put_contents("temp/example.base64.txt", $aztec->forWeb('BASE64'));
-
-?>
