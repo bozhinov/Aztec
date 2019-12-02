@@ -25,7 +25,7 @@ class Renderer
 	{
 		$this->createImage();
 		ob_start();
-		imagePng($this->image);
+		imagepng($this->image);
 		$imagedata = ob_get_contents();
 		ob_end_clean();
 
