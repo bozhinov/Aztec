@@ -1,4 +1,5 @@
 Processing examples : 
+examples\example.base64.php 
 examples\example.basic.pairCode.php 
 examples\example.basic.php 
 examples\example.binary.long.php 
