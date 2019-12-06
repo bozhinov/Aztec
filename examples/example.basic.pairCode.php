@@ -8,7 +8,4 @@ $text = 'Hello World 3 4 5 asasdas22345 . 456!';
 
 // Encode the data
 $aztec = new Aztec();
-$aztec->encode($text);
-
-// Create a PNG image
-$aztec->toFile('temp/example.pairCode.png');
+$aztec->encode($text)->toFile('temp/example.pairCode.png');
