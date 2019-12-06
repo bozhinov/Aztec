@@ -9,50 +9,49 @@ class Aztec
 	private $options = [];
 	private $pixelGrid;
 
-	public function __construct(array $options = [])
+	public function __construct(array $opts = [])
     {
-		$this->options['color'] = (isset($options['color'])) ? $options['color'] : new azColor(0);
-		$this->options['bgColor'] = (isset($options['bgColor'])) ? $options['bgColor'] : new azColor(255);
-		$this->options['eccPercent'] = (isset($options['eccPercent'])) ? $options['eccPercent'] : 33;
-		$this->options['hint'] = (isset($options['hint'])) ? $options['hint'] : "dynamic";
-		$this->options['ratio'] = (isset($options['ratio'])) ? $options['ratio'] : 4;
-		$this->options['padding'] = (isset($options['padding'])) ? $options['padding'] : 20;
-		$this->options['quality'] = (isset($options['quality'])) ? $options['quality'] : 90;
+		$this->setColor('color', 0, $opts);
+		$this->setColor('bgColor', 255, $opts);
 
-		$this->validateOptions();
-    }
-
-	public function config(array $options)
-	{
-		$this->__construct($options);
-	}
-
-	private function option_in_range(string $name, int $start, int $end)
-	{
-        if (!is_numeric($this->options[$name]) || $this->options[$name] < $start || $this->options[$name] > $end) {
-			throw azException::InvalidInput("Invalid value for \"$name\". Expected an integer between $start and $end.");
-        }
-	}
-
-    private function validateOptions()
-    {
-		$this->option_in_range('ratio', 1, 10);
-		$this->option_in_range('eccPercent', 1, 200);
-		$this->option_in_range('quality', 0, 100);
-		$this->option_in_range('padding', 0, 50);
-
-		if (!in_array($this->options["hint"], ["binary", "dynamic"])){
-			throw azException::InvalidInput("Invalid value for \"hint\". Expected \"binary\" or \"dynamic\".");
-        }
-
-		if (!($this->options['color'] instanceof azColor)) {
-			throw azException::InvalidInput("Invalid value for \"color\". Expected a pColor object.");
+		if (!isset($opts['hint'])) {
+			$this->options['hint'] = "dynamic";
+		} else {
+			if (!in_array($opts['hint'], ["binary", "dynamic"])){
+				throw azException::InvalidInput("Invalid value for \"hint\". Expected \"binary\" or \"dynamic\".");
+			}
+			$this->options['hint'] = $opts['hint'];
 		}
 
-		if (!($this->options['bgColor'] instanceof azColor)) {
-			throw azException::InvalidInput("Invalid value for \"bgColor\". Expected a pColor object.");
-		}
+		$this->options['ratio'] = (isset($opts['ratio'])) ? $this->option_in_range($opts['ratio'], 1, 10) : 4;
+		$this->options['padding'] = (isset($opts['padding'])) ? $this->option_in_range($opts['padding'], 0, 50) : 20;
+		$this->options['quality'] = (isset($opts['quality'])) ? $this->option_in_range($opts['quality'], 0, 100) : 90;
+		$this->options['eccPercent'] = (isset($opts['eccPercent'])) ? $this->option_in_range($opts['eccPercent'], 1, 200) : 33;
     }
+
+	private function setColor(string $value, int $default, $opts)
+	{
+		if (!isset($opts[$value])) {
+			$this->options[$value] = new azColor($default);
+		} else {
+			if (!($opts[$value] instanceof azColor)) {
+				throw azException::InvalidInput("Invalid value for \"$value\". Expected an azColor object.");
+			}
+			$this->options[$value] = $opts[$value];
+		}
+	}
+
+	public function config(array $opts)
+	{
+		$this->__construct($opts);
+	}
+
+	private function option_in_range($value, int $start, int $end)
+	{
+        if (!is_numeric($value) || $value < $start || $value > $end) {
+			throw azException::InvalidInput("Invalid value. Expected an integer between $start and $end.");
+        }
+	}
 
 	private function render()
 	{
@@ -96,12 +95,11 @@ class Aztec
 		($this->render())->forPChart($MyPicture->gettheImage(), $X, $Y);
 	}
 
-    /**
-     * Encodes the given data
-     */
     public function encode($data)
     {
 		$this->pixelGrid = (new Encoder())->encode($data, $this->options['eccPercent'], $this->options["hint"]);
+		
+		return $this;
     }
 
 }
