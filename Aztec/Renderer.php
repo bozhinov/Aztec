@@ -12,6 +12,8 @@ class Renderer
 	{
 		$this->pixelGrid = $pixelGrid;
 		$this->options = $options;
+
+		$this->createImage();
 	}
 
 	function __destruct()
@@ -23,7 +25,6 @@ class Renderer
 
 	public function toBase64()
 	{
-		$this->createImage();
 		ob_start();
 		imagepng($this->image);
 		$imagedata = ob_get_contents();
@@ -34,7 +35,6 @@ class Renderer
 
 	public function toPNG($filename)
 	{
-		$this->createImage();
 		if(is_null($filename)) {
 			header("Content-type: image/png");
 		}
@@ -43,7 +43,6 @@ class Renderer
 
 	public function toGIF($filename)
 	{
-		$this->createImage();
 		if(is_null($filename)) {
 			header("Content-type: image/gif");
 		}
@@ -52,7 +51,6 @@ class Renderer
 
 	public function toJPG($filename, $quality)
 	{
-		$this->createImage();
 		if(is_null($filename)) {
 			header("Content-type: image/jpeg");
 		}
@@ -61,7 +59,6 @@ class Renderer
 
 	public function forPChart($pImage, $X, $Y)
 	{
-		$this->createImage();
 		imagecopy($pImage, $this->image, $X, $Y, 0, 0, imagesx($this->image), imagesy($this->image));
 	}
 
