@@ -36,35 +36,29 @@ class Token implements \Countable
 		return $this->previous;
 	}
 
-	public function setHistory(array $history)
-	{
-		$this->previous = $history;
-	}
-
 	public function addtoHistory(array $previous)
 	{
 		$this->previous[] = $previous;
 	}
 
-	private function instantiate($value, $bitCount, $type)
+	private function instantiate($value, $bitCount, $binaryShift)
 	{
-		$bc = ($type == 1) ? 0 : $this->shiftByteCount;
+		$bc = ($binaryShift) ? 0 : $this->shiftByteCount;
 
-		$token = new self();
+		$token = clone $this;
 		$token->setState($this->mode, $bc, $this->bitCount);
-		$token->setHistory($this->previous);
-		$token->addtoHistory([$value, $bitCount, $type]);
+		$token->addtoHistory([$value, $bitCount, $binaryShift]);
 
 		return $token;
 	}
 
 	public function add($value, $bitCount)
 	{
-		return $this->instantiate($value, $bitCount, 0);
+		return $this->instantiate($value, $bitCount, FALSE);
 	}
 
 	public function addBinaryShift($value, $bitCount)
 	{
-		return $this->instantiate($value, $bitCount, 1);
+		return $this->instantiate($value, $bitCount, TRUE);
 	}
 }

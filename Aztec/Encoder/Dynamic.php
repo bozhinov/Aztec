@@ -359,9 +359,9 @@ class Dynamic
 
 		foreach ($symbols as $symbol) {
 
-			list($value, $bitCount, $type) = $symbol;
+			list($value, $bitCount, $binaryShift) = $symbol;
 
-			if ($type == 1) { # BinaryShiftToken
+			if ($binaryShift) { # BinaryShiftToken
 				# appendBinaryShift
 				# TODO: Add test coverage
 				for ($i = 0; $i < $bitCount; $i++) {
@@ -378,7 +378,7 @@ class Dynamic
 					$bstream[] = [$this->textCodes[$value + $i], 8];
 				}
 
-			} elseif ($type == 0) { # SimpleToken
+			} else { # SimpleToken
 				$bstream[] = [$value, $bitCount];
 			}
 		}
