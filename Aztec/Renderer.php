@@ -5,15 +5,37 @@ namespace Aztec;
 class Renderer
 {
 	private $image;
-	private $pixelGrid;
-	private $options;
+	private $size;
 
 	function __construct(array $pixelGrid, array $options)
 	{
-		$this->pixelGrid = $pixelGrid;
-		$this->options = $options;
+		$width = count($pixelGrid);
+		$ratio = $options['ratio'];
+		$padding = $options['padding'];
+		$this->size = ($width * $ratio) + ($padding * 2);
+		$this->image = imagecreate($this->size, $this->size);
 
-		$this->createImage();
+		// Extract options
+		list($R,$G,$B) = $options['bgColor']->get();
+		$bgColorAlloc = imagecolorallocate($this->image,$R,$G,$B);
+		imagefill($this->image, 0, 0, $bgColorAlloc);
+		list($R,$G,$B) = $options['color']->get();
+		$colorAlloc = imagecolorallocate($this->image,$R,$G,$B);
+
+		// Render the code
+		for ($x = 0; $x < $width; $x++) {
+			for ($y = 0; $y < $width; $y++) {
+				if (isset($pixelGrid[$x][$y])){
+					imagefilledrectangle(
+						$this->image, ($x * $ratio) + $padding,
+						($y * $ratio) + $padding,
+						(($x + 1) * $ratio - 1) + $padding,
+						(($y + 1) * $ratio - 1) + $padding,
+						$colorAlloc
+					);
+				}
+			}
+		}
 	}
 
 	function __destruct()
@@ -59,30 +81,6 @@ class Renderer
 
 	public function forPChart($pImage, $X, $Y)
 	{
-		imagecopy($pImage, $this->image, $X, $Y, 0, 0, imagesx($this->image), imagesy($this->image));
-	}
-
-	private function createImage()
-	{
-		$width = count($this->pixelGrid[0]);
-		$ratio = $this->options['ratio'];
-		$padding = $this->options['padding'];
-		$this->image = imagecreate(($width * $ratio) + ($padding * 2), ($width * $ratio) + ($padding * 2));
-
-		// Extract options
-		list($R,$G,$B) = $this->options['bgColor']->get();
-		$bgColorAlloc = imagecolorallocate($this->image,$R,$G,$B);
-		imagefill($this->image, 0, 0, $bgColorAlloc);
-		list($R,$G,$B) = $this->options['color']->get();
-		$colorAlloc = imagecolorallocate($this->image,$R,$G,$B);
-
-		// Render the code
-		for ($x = 0; $x < $width; $x++) {
-			for ($y = 0; $y < $width; $y++) {
-				if (isset($this->pixelGrid[$x][$y])){
-					imagefilledrectangle($this->image, ($x * $ratio) + $padding, ($y * $ratio) + $padding, (($x + 1) * $ratio - 1) + $padding, (($y + 1) * $ratio - 1) + $padding, $colorAlloc);
-				}
-			}
-		}
+		imagecopy($pImage, $this->image, $X, $Y, 0, 0, $this->size, $this->size);
 	}
 }
