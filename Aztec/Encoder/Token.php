@@ -4,7 +4,7 @@ namespace Aztec\Encoder;
 
 class Token implements \Countable
 {
-	private $previous = [];
+	private $history = [];
 	private $mode = 0;
 	private $shiftByteCount = 0;
 	private $bitCount = 0;
@@ -31,15 +31,15 @@ class Token implements \Countable
 		return $this->bitCount;
 	}
 
-	public function getPrevious()
+	public function getHistory()
 	{
-		return $this->previous;
+		return $this->history;
 	}
 
 	public function add($value, $bits)
 	{
 		$this->bitCount += $bits;
-		$this->previous[] = [$value, $bits];
+		$this->history[] = [$value, $bits];
 	}
 
 	public function endBinaryShift()

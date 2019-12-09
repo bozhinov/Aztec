@@ -155,23 +155,32 @@ class Dynamic
 		$this->states = [new Token()];
 
 		for ($index = 0; $index < $textCount; $index++) {
-			$nextChar = (($index + 1 != $textCount) ? $textCodes[$index + 1] : 0);
-			switch ($textCodes[$index]) {
-				case 92:
-					$pairCode = (($nextChar == 92) ? 2 : 0);
-					break;
-				case 46:
-					$pairCode = (($nextChar == 32) ? 3 : 0);
-					break;
-				case 44:
-					$pairCode = (($nextChar == 32) ? 4 : 0);
-					break;
-				case 58:
-					$pairCode = (($nextChar == 32) ? 5 : 0);
-					break;
-				default:
-					$pairCode = 0;
-					break;
+
+			$pairCode = 0;
+			if ($index + 1 < $textCount){
+				$nextChar = $textCodes[$index + 1];
+				switch ($textCodes[$index]) {
+					case 92:
+						if ($nextChar == 92) {
+							$pairCode = 2;
+						}
+						break;
+					case 46:
+						if ($nextChar == 32) {
+							$pairCode = 3;
+						}
+						break;
+					case 44:
+						if ($nextChar == 32) {
+							$pairCode = 4;
+						}
+						break;
+					case 58:
+						if ($nextChar == 32) {
+							$pairCode = 5;
+						}
+						break;
+				}
 			}
 
 			if ($pairCode > 0) {
@@ -192,7 +201,7 @@ class Dynamic
 		}
 
 		# isBetterThanOrEqualTo guarantees binaryShifts are gone 
-		return $minState->getPrevious();
+		return $minState->getHistory();
 	}
 
 	private function updateStateListForChar($ch)
