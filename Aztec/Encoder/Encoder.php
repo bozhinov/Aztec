@@ -47,7 +47,7 @@ class Encoder
 		}
 	}
 
-	public function encode(string $content, int $eccPercent = 33, $hint = "dynamic")
+	public function encode($content, $eccPercent, $hint)
 	{
 		$LAYERS_COMPACT = 5;
 		$LAYERS_FULL = 33;
