@@ -9,11 +9,11 @@ class Token implements \Countable
 	private $shiftByteCount = 0;
 	private $bitCount = 0;
 
-	public function setState($mode, $binaryBytes, $bitCount)
+	public function setState($mode, $binaryBytes, $bitCount = 0)
 	{
 		$this->mode = $mode;
 		$this->shiftByteCount = $binaryBytes;
-		$this->bitCount = $bitCount;
+		$this->bitCount += $bitCount;
 	}
 
 	public function getMode()
@@ -36,23 +36,14 @@ class Token implements \Countable
 		return $this->previous;
 	}
 
-	public function addtoHistory(array $previous)
+	public function add($value, $bits)
 	{
-		$this->previous[] = $previous;
+		$this->bitCount += $bits;
+		$this->previous[] = [$value, $bits];
 	}
 
-	public function add($value, $bitCount)
+	public function endBinaryShift()
 	{
-		$token = clone $this;
-		$token->addtoHistory([$value, $bitCount, FALSE]);
-		return $token;
-	}
-
-	public function addBinaryShift($value, $bitCount)
-	{
-		$token = clone $this;
-		$token->setState($this->mode, 0, $this->bitCount);
-		$token->addtoHistory([$value, $bitCount, TRUE]);
-		return $token;
+		$this->shiftByteCount = 0;
 	}
 }

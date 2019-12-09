@@ -90,17 +90,17 @@ class Dynamic
 
 		$charMap[0][32] = 1;
 		for ($c = 65; $c <= 90; $c++) {
-			$charMap[0][$c] = ($c - 65 + 2);
+			$charMap[0][$c] = $c - 65 + 2;
 		}
 
 		$charMap[1][32] = 1;
 		for ($c = 97; $c <= 122; $c++) {
-			$charMap[1][$c] = ($c - 97 + 2);
+			$charMap[1][$c] = $c - 97 + 2;
 		}
 
 		$charMap[2][32] = 1;
 		for ($c = 48; $c <= 57; $c++) {
-			$charMap[2][$c] = ($c - 48 + 2);
+			$charMap[2][$c] = $c - 48 + 2;
 		}
 		$charMap[2][44] = 12;
 		$charMap[2][46] = 13;
@@ -135,7 +135,7 @@ class Dynamic
 		return $charMap;
 	}
 
-	private function getCharMapping($char, $mode)
+	private function getCharMapping($mode, $char)
 	{
 		return $this->charMap[$mode][$char];
 	}
@@ -192,7 +192,8 @@ class Dynamic
 			}
 		}
 
-		return $this->toBitArray($minState);
+		# isBetterThanOrEqualTo guarantees binaryShifts are gone 
+		return $minState->getPrevious();
 	}
 
 	private function updateStateListForChar($index, $ch)
@@ -201,24 +202,28 @@ class Dynamic
 
 		foreach ($this->states as $state) {
 			$current_mode = $state->getMode();
-			$charInCurrentTable = ($this->getCharMapping($ch, $current_mode) > 0);
-			$stateNoBinary = null;
+			$notInCurrentTable = ($this->getCharMapping($current_mode, $ch) == 0);
+			$binary = TRUE;
 			for ($mode = 0; $mode <= 4; $mode++) {
-				$charInMode = $this->getCharMapping($ch, $mode);
+				$charInMode = $this->getCharMapping($mode, $ch);
 				if ($charInMode > 0) {
-					if ($stateNoBinary === null) {
-						$stateNoBinary = $this->endBinaryShift($state, $index);
+					if ($binary) {
+						$state->endBinaryShift();
+						$binary = FALSE;
 					}
-					if (!$charInCurrentTable || $mode == $current_mode || $mode == 2) {
-						$result[] = $this->latchAndAppend($stateNoBinary, $mode, $charInMode);
+					if ($notInCurrentTable || $mode == $current_mode || $mode == 2) {
+						$result[] = $this->latchAndAppend($state, $mode, $charInMode);
 					}
-					if (!$charInCurrentTable && $this->getShift($current_mode, $mode) >= 0) {
-						$result[] = $this->shiftAndAppend($stateNoBinary, $mode, $charInMode);
+					if ($notInCurrentTable && $this->getShift($current_mode, $mode) >= 0) {
+						$result[] = $this->shiftAndAppend($state, $mode, $charInMode);
 					}
 				}
 			}
-			if ($state->getShiftByteCount() > 0 || $this->getCharMapping($ch, $current_mode) == 0) {
-				$result[] = $this->addBinaryShiftChar($state, $index);
+
+			if ($state->getShiftByteCount() > 0 || $notInCurrentTable) {
+				# can safely change the last one
+				$this->addBinaryShiftChar($state);
+				$result[] = $state;
 			}
 		}
 
@@ -229,19 +234,20 @@ class Dynamic
 	{
 		$result = [];
 		foreach ($this->states as $state) {
-			$stateNoBinary = $this->endBinaryShift($state, $index);
+			$state->endBinaryShift();
 
-			$result[] = $this->latchAndAppend($stateNoBinary, 4, $pairCode);
+			$result[] = $this->latchAndAppend($state, 4, $pairCode);
 			if ($state->getMode() != 4) {
-				$result[] = $this->shiftAndAppend($stateNoBinary, 4, $pairCode);
+				$result[] = $this->shiftAndAppend($state, 4, $pairCode);
 			}
 			if ($pairCode == 3 || $pairCode == 4) {
-				$interm = $this->latchAndAppend($stateNoBinary, 2, 16 - $pairCode);
+				$interm = $this->latchAndAppend($state, 2, 16 - $pairCode);
 				$result[] = $this->latchAndAppend($interm, 2, 1);
 			}
 			if ($state->getShiftByteCount() > 0) {
-				$interm = $this->addBinaryShiftChar($state, $index);
-				$result[] = $this->addBinaryShiftChar($interm, $index + 1);
+				$this->addBinaryShiftChar($state);
+				$this->addBinaryShiftChar($state);
+				$result[] = $state;
 			}
 		}
 
@@ -251,21 +257,21 @@ class Dynamic
 	private function simplifyStates()
 	{
 		$result = [];
-		foreach ($this->states as $newState) {
+		foreach ($this->states as $state) {
 			$add = true;
 			for ($i = 0; $i < count($result); $i++) {
-				if ($this->isBetterThanOrEqualTo($result[$i], $newState)) {
+				if ($this->isBetterThanOrEqualTo($result[$i], $state)) {
 					$add = false;
 					break;
 				}
-				if ($this->isBetterThanOrEqualTo($newState, $result[$i])) {
+				if ($this->isBetterThanOrEqualTo($state, $result[$i])) {
 					unset($result[$i]);
 					$result = array_values($result);
 					$i--;
 				}
 			}
 			if ($add) {
-				$result[] = $newState;
+				$result[] = $state;
 			}
 		}
 
@@ -284,42 +290,41 @@ class Dynamic
 
 	private function shiftAndAppend($token, $mode, $value)
 	{
+		$token = clone $token;
 		$current_mode = $token->getMode();
-		$thisModeBitCount = ($current_mode == $this->MODE_DIGIT ? 4 : 5);
-		$token = $token->add($this->getShift($current_mode, $mode), $thisModeBitCount);
-		$token = $token->add($value, 5);
-		$bitCount = count($token);
 
-		$token->setState($current_mode, 0, $bitCount + $thisModeBitCount + 5);
+		$thisModeBitCount = ($current_mode == $this->MODE_DIGIT ? 4 : 5);
+		$token->add($this->getShift($current_mode, $mode), $thisModeBitCount);
+		$token->add($value, 5);
+		$token->endBinaryShift();
+
 		return $token;
 	}
 
 	private function latchAndAppend($token, $mode, $value)
 	{
-		$bitCount = count($token);
+		$token = clone $token;
 		$current_mode = $token->getMode();
 
 		if ($mode != $current_mode) {
 			$latch = $this->getLatch($current_mode, $mode);
-			$token = $token->add(($latch & 0xFFFF), ($latch >> 16));
-			$bitCount += ($latch >> 16);
+			$token->add(($latch & 0xFFFF), ($latch >> 16));
 		}
-		$thisModeBitCount = ($mode == $this->MODE_DIGIT ? 4 : 5);
-		$token = $token->add($value, $thisModeBitCount);
 
-		$token->setState($mode, 0, $bitCount + $thisModeBitCount);
+		$thisModeBitCount = ($mode == $this->MODE_DIGIT ? 4 : 5);
+		$token->add($value, $thisModeBitCount);
+		$token->setState($mode, 0);
+
 		return $token;
 	}
 
-	private function addBinaryShiftChar($token, $index)
+	private function addBinaryShiftChar(&$token)
 	{
 		$current_mode = $token->getMode();
-		$bitCount = count($token);
 
 		if ($current_mode == $this->MODE_PUNCT || $current_mode == $this->MODE_DIGIT) {
 			$latch = $this->getLatch($current_mode, $this->MODE_UPPER);
-			$token = $token->add(($latch & 0xFFFF), ($latch >> 16));
-			$bitCount += ($latch >> 16);
+			$token->add(($latch & 0xFFFF), ($latch >> 16));
 			$current_mode = $this->MODE_UPPER;
 		}
 
@@ -331,58 +336,7 @@ class Dynamic
 		} else {
 			$deltaBitCount = 8;
 		}
-		$token->setState($current_mode, $shiftByteCount + 1, $bitCount + $deltaBitCount);
-		if ($shiftByteCount + 1 == (2047 + 31)) {
-			$token = $this->endBinaryShift($token, $index + 1);
-		}
 
-		return $token;
-	}
-
-	private function endBinaryShift($token, $index)
-	{
-		$shiftByteCount = $token->getShiftByteCount();
-		if ($shiftByteCount != 0) {
-			$token = $token->addBinaryShift($index - $shiftByteCount, $shiftByteCount);
-		}
-
-		return $token;
-	}
-
-	private function toBitArray($token)
-	{
-		$token = $this->endBinaryShift($token, count($this->textCodes));
-
-		$symbols = $token->getPrevious();
-
-		$bstream = [];
-
-		foreach ($symbols as $symbol) {
-
-			list($value, $bitCount, $binaryShift) = $symbol;
-
-			if ($binaryShift) { # BinaryShiftToken
-				# appendBinaryShift
-				# TODO: Add test coverage
-				for ($i = 0; $i < $bitCount; $i++) {
-					if ($i == 0 || ($i == 31 && $bitCount <= 62)) {
-						$bstream[] = [31, 5];
-						if ($bitCount > 62) {
-							$bstream[] = [$bitCount - 31, 16];
-						} elseif ($i == 0) {
-							$bstream[] = [min($bitCount, 31), 5];
-						} else {
-							$bstream[] = [$bitCount - 31, 5];
-						}
-					}
-					$bstream[] = [$this->textCodes[$value + $i], 8];
-				}
-
-			} else { # SimpleToken
-				$bstream[] = [$value, $bitCount];
-			}
-		}
-
-		return $bstream;
+		$token->setState($current_mode, $shiftByteCount + 1, $deltaBitCount);
 	}
 }
