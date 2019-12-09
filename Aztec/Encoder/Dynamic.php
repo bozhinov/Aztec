@@ -176,10 +176,10 @@ class Dynamic
 			}
 
 			if ($pairCode > 0) {
-				$this->updateStateListForPair($index, $pairCode);
+				$this->updateStateListForPair($pairCode);
 				$index++;
 			} else {
-				$this->updateStateListForChar($index,$this->textCodes[$index]);
+				$this->updateStateListForChar($this->textCodes[$index]);
 			}
 
 			$this->simplifyStates();
@@ -196,7 +196,7 @@ class Dynamic
 		return $minState->getPrevious();
 	}
 
-	private function updateStateListForChar($index, $ch)
+	private function updateStateListForChar($ch)
 	{
 		$result = [];
 
@@ -230,7 +230,7 @@ class Dynamic
 		$this->states = $result;
 	}
 
-	private function updateStateListForPair($index, $pairCode)
+	private function updateStateListForPair($pairCode)
 	{
 		$result = [];
 		foreach ($this->states as $state) {
