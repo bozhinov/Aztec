@@ -18,6 +18,8 @@
 
 namespace Aztec\Encoder;
 
+use \Aztec\azException;
+
 class Encoder
 {
 	private $MATRIX;
@@ -65,7 +67,7 @@ class Encoder
 				$encoder = new Binary();
 				break;
 			default:
-				throw new \InvalidArgumentException('Unknown encoder');
+				throw azException::EncoderError('Unknown encoder');
 		}
 
 		$bstream = $encoder->encode($content);
@@ -107,7 +109,7 @@ class Encoder
 		}
 
 		if ($layers == $LAYERS_FULL) {
-			throw new \InvalidArgumentException('Data too large');
+			throw azException::EncoderError('Data too large');
 		}
 
 		// generate check words

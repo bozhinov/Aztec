@@ -9,11 +9,6 @@ class azException extends \Exception
 		return new static(sprintf('Aztec: %s', $text));
 	}
 
-	public static function InternalError($text)
-	{
-		return new static(sprintf('Aztec: %s', $text));
-	}
-
 	public static function EncoderError($text)
 	{
 		return new static(sprintf('Aztec: %s', $text));

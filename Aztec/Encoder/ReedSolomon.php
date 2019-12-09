@@ -18,6 +18,8 @@
 
 namespace Aztec\Encoder;
 
+use \Aztec\azException;
+
 class ReedSolomon
 {
     private $expTable;
@@ -87,7 +89,7 @@ class ReedSolomon
 				$size = 4096;
 				break;
 			default:
-				throw new \InvalidArgumentException("Word size of $wordSize was unexpected");
+				throw azException::InvalidInput("Word size of $wordSize was unexpected");
 		}
 
 		return [$primitive, $size];
@@ -133,7 +135,7 @@ class ReedSolomon
         }
 
 		if ($this->isZero($product)) {
-            throw new \InvalidArgumentException('Divide by 0');
+            throw azException::InvalidInput('Divide by 0');
         }
 
 		return $this->getPoly($product);
@@ -169,13 +171,10 @@ class ReedSolomon
 
 	private function multiplyByMonomial($degree, $coefficient, $coefficients)
     {
-        if ($degree < 0) {
-            throw new \InvalidArgumentException();
-        }
         if ($coefficient == 0) {
             return [0];
         }
-		
+
 		$count = count($coefficients);
         $product = array_fill(0, ($count + $degree), 0);
 
@@ -208,10 +207,10 @@ class ReedSolomon
         $dataLength = count($paddedData) - $ecBytes;
 
 		if ($ecBytes == 0) {
-            throw new \InvalidArgumentException('No error correction bytes');
+            throw azException::InvalidInput('No error correction bytes');
         }
         if ($dataLength == 0) {
-            throw new \InvalidArgumentException('No data bytes provided');
+            throw azException::InvalidInput('No data bytes provided');
         }
 
         $data = array_splice($paddedData, 0, $dataLength);
