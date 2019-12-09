@@ -24,7 +24,6 @@ class Dynamic
 	private $charMap;
 	private $shiftTable;
 	private $latchTable;
-	private $textCodes;
 
 	private $MODE_UPPER = 0;
 	private $MODE_LOWER = 1;
@@ -150,14 +149,14 @@ class Dynamic
 		# ord(' ') = 32
 		# ord('') = 0
 
-		$this->textCodes = array_values(unpack('C*', $data));
-		$textCount = count($this->textCodes);
+		$textCodes = array_values(unpack('C*', $data));
+		$textCount = count($textCodes);
 
 		$this->states = [new Token()];
 
 		for ($index = 0; $index < $textCount; $index++) {
-			$nextChar = (($index + 1 != $textCount) ? $this->textCodes[$index + 1] : 0);
-			switch ($this->textCodes[$index]) {
+			$nextChar = (($index + 1 != $textCount) ? $textCodes[$index + 1] : 0);
+			switch ($textCodes[$index]) {
 				case 92:
 					$pairCode = (($nextChar == 92) ? 2 : 0);
 					break;
@@ -179,7 +178,7 @@ class Dynamic
 				$this->updateStateListForPair($pairCode);
 				$index++;
 			} else {
-				$this->updateStateListForChar($this->textCodes[$index]);
+				$this->updateStateListForChar($textCodes[$index]);
 			}
 
 			$this->simplifyStates();
