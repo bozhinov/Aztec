@@ -10,7 +10,7 @@ class Aztec
 	private $pixelGrid;
 
 	public function __construct(array $opts = [])
-    {
+	{
 		$this->setColor('color', 0, $opts);
 		$this->setColor('bgColor', 255, $opts);
 
@@ -27,7 +27,7 @@ class Aztec
 		$this->options['padding'] = (isset($opts['padding'])) ? $this->option_in_range($opts['padding'], 0, 50) : 20;
 		$this->options['quality'] = (isset($opts['quality'])) ? $this->option_in_range($opts['quality'], 0, 100) : 90;
 		$this->options['eccPercent'] = (isset($opts['eccPercent'])) ? $this->option_in_range($opts['eccPercent'], 1, 200) : 33;
-    }
+	}
 
 	private function setColor(string $value, int $default, $opts)
 	{
@@ -48,9 +48,9 @@ class Aztec
 
 	private function option_in_range($value, int $start, int $end)
 	{
-        if (!is_numeric($value) || $value < $start || $value > $end) {
+		if (!is_numeric($value) || $value < $start || $value > $end) {
 			throw azException::InvalidInput("Invalid value. Expected an integer between $start and $end.");
-        }
+		}
 	}
 
 	private function render()
@@ -95,11 +95,10 @@ class Aztec
 		($this->render())->forPChart($MyPicture->gettheImage(), $X, $Y);
 	}
 
-    public function encode($data)
-    {
+	public function encode($data)
+	{
 		$this->pixelGrid = (new Encoder())->encode($data, $this->options['eccPercent'], $this->options["hint"]);
-		
-		return $this;
-    }
 
+		return $this;
+	}
 }

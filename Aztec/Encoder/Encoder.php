@@ -41,11 +41,11 @@ class Encoder
 	}
 
 	public function appendBstream(&$bstream, $data, $bits)
-    {
-        for ($i = $bits - 1; $i >= 0; $i--) {
-            $bstream[] = ($data >> $i) & 1;
-        }
-    }
+	{
+		for ($i = $bits - 1; $i >= 0; $i--) {
+			$bstream[] = ($data >> $i) & 1;
+		}
+	}
 
 	public function encode(string $content, int $eccPercent = 33, $hint = "dynamic")
 	{
