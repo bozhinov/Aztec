@@ -28,35 +28,30 @@ class ReedSolomon
 
 	public function __construct($wordSize)
 	{
-		list($primitive, $size) = $this->getGF($wordSize);
-		$this->size = $size;
-		$this->initialize($primitive, $size);
+		$this->size = pow(2, $wordSize);
+		$primitive = $this->getGF($wordSize);
+		$this->initialize($primitive);
 	}
 
-	private function initialize($primitive, $size)
+	private function initialize($primitive)
 	{
-		$this->expTable = array_fill(0, $size, 0);
+		$this->expTable = array_fill(0, $this->size, 0);
 		$this->logTable = $this->expTable;
 		$x = 1;
-		for ($i = 0; $i < $size; $i++) {
+		for ($i = 0; $i < $this->size; $i++) {
 			$this->expTable[$i] = $x;
 			$x <<= 1;
-			if ($x >= $size) {
+			if ($x >= $this->size) {
 				$x ^= $primitive;
-				$x &= ($size - 1);
+				$x &= ($this->size - 1);
 			}
 		}
-		for ($i = 0; $i < $size; $i++) {
+		for ($i = 0; $i < $this->size; $i++) {
 			$this->logTable[$this->expTable[$i]] = $i;
 		}
 	}
 
-	public function field_exp($a)
-	{
-		return $this->expTable[$a];
-	}
-
-	public function field_multiply($a, $b)
+	private function field_multiply($a, $b)
 	{
 		if ($a == 0 || $b == 0) {
 			return 0;
@@ -69,30 +64,25 @@ class ReedSolomon
 	{
 		switch ($wordSize) {
 			case 4:
-				$primitive = 0x13;
-				$size = 16;
+				$primitive = 19;
 				break;
 			case 6:
-				$primitive = 0x43;
-				$size = 64;
+				$primitive = 67;
 				break;
 			case 8:
-				$primitive = 0x012D;
-				$size = 256;
+				$primitive = 301;
 				break;
 			case 10:
-				$primitive = 0x409;
-				$size = 1024;
+				$primitive = 1033;
 				break;
 			case 12:
-				$primitive = 0x1069;
-				$size = 4096;
+				$primitive = 4201;
 				break;
 			default:
 				throw azException::InvalidInput("Word size of $wordSize was unexpected");
 		}
 
-		return [$primitive, $size];
+		return $primitive;
 	}
 
 	private function getPoly(array $coefficients)
@@ -109,7 +99,7 @@ class ReedSolomon
 		$lastGenerator = [1];
 		$Generators = [[$lastGenerator]];
 		for ($d = count($Generators); $d <= $ecBytes; $d++) {
-			$nextCoefficent = $this->field_exp($d);
+			$nextCoefficent = $this->expTable[$d];
 			$lastGenerator = $this->multiply([1, $nextCoefficent], $lastGenerator);
 			$Generators[] = $lastGenerator;
 		}
@@ -119,10 +109,7 @@ class ReedSolomon
 
 	private function multiply(array $bCoefficients, array $aCoefficients)
 	{
-		if ($this->isZero($aCoefficients) || $this->isZero($bCoefficients)) {
-			return [0];
-		}
-
+		# Coefficients are prepended 1 so can't be 0
 		$aLength = count($aCoefficients);
 		$bLength = count($bCoefficients);
 		$product = array_fill(0, ($aLength + $bLength - 1), 0);
