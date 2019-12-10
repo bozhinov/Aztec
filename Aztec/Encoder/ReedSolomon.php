@@ -22,17 +22,29 @@ use \Aztec\azException;
 
 class ReedSolomon
 {
+	private $size;
 	private $expTable;
 	private $logTable;
-	private $size;
+	# galois field
+	private $gfTable = [
+			4 => 19,
+			6 => 67,
+			8 => 301,
+			10 => 1033,
+			12 => 4201
+		];
 
 	public function __construct($wordSize)
 	{
+		if (!isset($this->gfTable[$wordSize])){
+			throw azException::InvalidInput("Word size of $wordSize was unexpected");
+		}
+
 		$this->size = pow(2, $wordSize);
-		$primitive = $this->getGF($wordSize);
-		$this->initialize($primitive);
+		$this->initialize($this->gfTable[$wordSize]);
 	}
 
+	# generate logarithm and anti-log tables
 	private function initialize($primitive)
 	{
 		$this->expTable = array_fill(0, $this->size, 0);
@@ -58,31 +70,6 @@ class ReedSolomon
 		}
 
 		return $this->expTable[($this->logTable[$a] + $this->logTable[$b]) % ($this->size - 1)];
-	}
-
-	private function getGF($wordSize)
-	{
-		switch ($wordSize) {
-			case 4:
-				$primitive = 19;
-				break;
-			case 6:
-				$primitive = 67;
-				break;
-			case 8:
-				$primitive = 301;
-				break;
-			case 10:
-				$primitive = 1033;
-				break;
-			case 12:
-				$primitive = 4201;
-				break;
-			default:
-				throw azException::InvalidInput("Word size of $wordSize was unexpected");
-		}
-
-		return $primitive;
 	}
 
 	private function getPoly(array $coefficients)
