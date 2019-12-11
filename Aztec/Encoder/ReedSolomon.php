@@ -54,7 +54,7 @@ class ReedSolomon
 
 	private function getPoly(array $coefficients)
 	{
-		while (!empty($coefficients) && $coefficients[0] == 0) {
+		while ($coefficients[0] == 0) {
 			array_shift($coefficients);
 		}
 
