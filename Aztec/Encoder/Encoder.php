@@ -250,10 +250,20 @@ class Encoder
 			$stuffedBits[] = 1;
 		}
 		$totalWords = intval($totalSymbolBits / $wordSize);
+		$ecBytes = $totalWords - $messageSizeInWords;
+
 		$messageWords = $this->bitsToWords($stuffedBits, $wordSize, $totalWords);
+		
+		if ($messageSizeInWords == 0) {
+			throw azException::InvalidInput('No data bytes provided');
+		}
+
+		if ($ecBytes == 0) {
+			throw azException::InvalidInput('No error correction bytes');
+		}
 
 		$rs = new ReedSolomon($wordSize);
-		$messageWords = $rs->encodePadded($messageWords, $totalWords - $messageSizeInWords);
+		$messageWords = $rs->encodePadded($messageWords, $ecBytes);
 
 		$startPad = $totalSymbolBits % $wordSize;
 		$messageBits = [[0, $startPad]];

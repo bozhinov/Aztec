@@ -178,19 +178,11 @@ class ReedSolomon
 
 	public function encodePadded(array $paddedData, $ecBytes)
 	{
-		$dataLength = count($paddedData) - $ecBytes;
+		array_splice($paddedData, -$ecBytes);
 
-		if ($ecBytes == 0) {
-			throw azException::InvalidInput('No error correction bytes');
-		}
-		if ($dataLength == 0) {
-			throw azException::InvalidInput('No data bytes provided');
-		}
-
-		$data = array_splice($paddedData, 0, $dataLength);
-		$coefficients = $this->divide($ecBytes, $data);
+		$coefficients = $this->divide($ecBytes, $paddedData);
 		$paddedCoefficients = array_pad($coefficients, -$ecBytes, 0);
 
-		return array_merge($data, $paddedCoefficients);
+		return array_merge($paddedData, $paddedCoefficients);
 	}
 }
