@@ -4,8 +4,8 @@ namespace Aztec\Encoder;
 
 class Binary {
 
-    public function encode($data)
-    {
+	public function encode($data)
+	{
 		$data = array_values(unpack('C*', $data));
 		$len = count($data);
 
@@ -19,14 +19,14 @@ class Binary {
 			# Used to be $len - 32 but that resulted 
 			# in AK at the end of the decoded string
 			$bstream[] = [($len - 31), 11];
-        } else {
+		} else {
 			$bstream[] = [$len, 5];
-        }
+		}
 
 		foreach($data as $ord){
 			$bstream[] = [$ord, 8];
 		}
 
-        return $bstream;
-    }
+		return $bstream;
+	}
 }
