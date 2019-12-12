@@ -265,22 +265,16 @@ class Dynamic
 	private function simplifyStates()
 	{
 		$result = [];
+
 		foreach ($this->states as $state) {
-			$add = true;
+
 			for ($i = 0; $i < count($result); $i++) {
 				if ($this->isBetterThanOrEqualTo($result[$i], $state)) {
-					$add = false;
-					break;
-				}
-				if ($this->isBetterThanOrEqualTo($state, $result[$i])) {
-					unset($result[$i]);
-					$result = array_values($result);
-					$i--;
+					continue 2;
 				}
 			}
-			if ($add) {
-				$result[] = $state;
-			}
+
+			$result[] = $state;
 		}
 
 		$this->states = $result;
