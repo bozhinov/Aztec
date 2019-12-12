@@ -64,14 +64,12 @@ class ReedSolomon
 	private function buildGenerator($ecBytes)
 	{
 		$lastGenerator = [1];
-		$Generators = [[$lastGenerator]];
-		for ($d = count($Generators); $d <= $ecBytes; $d++) {
-			$nextCoefficent = $this->expTable[$d];
-			$lastGenerator = $this->multiply([1, $nextCoefficent], $lastGenerator);
-			$Generators[] = $lastGenerator;
+
+		for ($d = 1; $d <= $ecBytes; $d++) {
+			$lastGenerator = $this->multiply([1, $this->expTable[$d]], $lastGenerator);
 		}
 
-		return [$d, $Generators[$ecBytes]];	
+		return $lastGenerator;
 	}
 
 	private function multiply(array $bCoefficients, array $aCoefficients)
@@ -82,9 +80,8 @@ class ReedSolomon
 		$product = array_fill(0, ($aLength + $bLength - 1), 0);
 
 		for ($i = 0; $i < $aLength; $i++) {
-			$aCoeff = $aCoefficients[$i];
 			for ($j = 0; $j < $bLength; $j++) {
-				$product[$i + $j] ^= ($this->field_multiply($aCoeff, $bCoefficients[$j]));
+				$product[$i + $j] ^= ($this->field_multiply($aCoefficients[$i], $bCoefficients[$j]));
 			}
 		}
 
@@ -141,7 +138,8 @@ class ReedSolomon
 
 	private function divide($ecBytes, $data)
 	{
-		list($otherDegree, $otherCoefficient) = $this->buildGenerator($ecBytes);
+		$otherDegree = $ecBytes + 1;
+		$otherCoefficient = $this->buildGenerator($ecBytes);
 
 		$one = $this->multiplyByMonomial($ecBytes, 1, $data);
 
