@@ -40,7 +40,7 @@ class Encoder
 		return $data;
 	}
 
-	public function appendBstream(&$bstream, $data, $bits)
+	private function appendBstream(&$bstream, $data, $bits)
 	{
 		for ($i = $bits - 1; $i >= 0; $i--) {
 			$bstream[] = ($data >> $i) & 1;
@@ -237,7 +237,7 @@ class Encoder
 		$this->mSet($center + $size, $center + $size - 1);
 	}
 
-	private function generateCheckWords(array $stuffedBits, $totalSymbolBits, $wordSize)
+	private function generateCheckWords($stuffedBits, $totalSymbolBits, $wordSize)
 	{
 		$messageSizeInWords = intval((count($stuffedBits) + $wordSize - 1) / $wordSize);
 		for ($i = $messageSizeInWords * $wordSize - count($stuffedBits); $i > 0; $i--) {
@@ -269,7 +269,7 @@ class Encoder
 		return $this->toByte($messageBits);
 	}
 
-	private function bitsToWords(array $stuffedBits, $wordSize, $totalWords)
+	private function bitsToWords($stuffedBits, $wordSize, $totalWords)
 	{
 		$message = array_fill(0, $totalWords, 0);
 		$n = intval(count($stuffedBits) / $wordSize);
