@@ -130,7 +130,7 @@ class Encoder
 			}
 		}
 
-		$this->MATRIX = [new \SplFixedArray($matrixSize), new \SplFixedArray($matrixSize)];
+		$this->MATRIX = [];
 
 		// draw mode and data bits
 		for ($i = 0, $rowOffset = 0; $i < $layers; $i++) {
