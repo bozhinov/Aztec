@@ -51,6 +51,8 @@ class Aztec
 		if (!is_numeric($value) || $value < $start || $value > $end) {
 			throw azException::InvalidInput("Invalid value. Expected an integer between $start and $end.");
 		}
+
+		return $value;
 	}
 
 	private function render()
