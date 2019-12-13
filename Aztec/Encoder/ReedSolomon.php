@@ -52,7 +52,7 @@ class ReedSolomon
 		return $this->expTable[($this->logTable[$a] + $this->logTable[$b]) % ($this->size - 1)];
 	}
 
-	private function getPoly(array $coefficients)
+	private function getPoly($coefficients)
 	{
 		while (!empty($coefficients) && $coefficients[0] == 0) {
 			array_shift($coefficients);
@@ -72,7 +72,7 @@ class ReedSolomon
 		return $lastGenerator;
 	}
 
-	private function multiply(array $bCoefficients, array $aCoefficients)
+	private function multiply($bCoefficients, $aCoefficients)
 	{
 		# Coefficients are prepended 1 so can't be 0
 		$aLength = count($aCoefficients);
@@ -97,7 +97,7 @@ class ReedSolomon
 		return $coefficients[0] == 0;
 	}
 
-	private function addOrSubtract(array $largerCoefficients, array $smallerCoefficients)
+	private function addOrSubtract($largerCoefficients, $smallerCoefficients)
 	{
 		if ($this->isZero($smallerCoefficients)) {
 			return $largerCoefficients;

@@ -29,7 +29,7 @@ class Aztec
 		$this->options['eccPercent'] = (isset($opts['eccPercent'])) ? $this->option_in_range($opts['eccPercent'], 1, 200) : 33;
 	}
 
-	private function setColor(string $value, int $default, $opts)
+	private function setColor($value, $default, $opts)
 	{
 		if (!isset($opts[$value])) {
 			$this->options[$value] = new azColor($default);
