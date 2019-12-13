@@ -52,7 +52,6 @@ class Encoder
 		$LAYERS_COMPACT = 5;
 		$LAYERS_FULL = 33;
 
-		$compact = true;
 		$wordSizeDict = [
 			4,  6,  6,  8,  8,  8,  8,  8,  8, 10, 10,
 			10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
@@ -75,12 +74,26 @@ class Encoder
 		$bitCount = count($bits);
 
 		$eccBits = intval($bitCount * $eccPercent / 100 + 11);
-		$totalSizeBits = $bitCount + $eccBits;
+		$totalSizeBits = $bitCount + $eccBits; 
+		$compact = ($totalSizeBits <= 608); # 4 layers
 
 		$wordSize = 0;
 		$stuffedBits = [];
-		for ($layers = 1; $layers < $LAYERS_COMPACT; $layers++) {
-			$bitsPerLayer = (88 + 16 * $layers) * $layers;
+
+		if ($compact) {
+			$UPTO = $LAYERS_COMPACT;
+			$bitsPer = function($layers) {
+				return (88 + 16 * $layers) * $layers;
+			};
+		} else {
+			$UPTO = $LAYERS_FULL;
+			$bitsPer = function($layers) {
+				return (112 + 16 * $layers) * $layers;
+			};
+		}
+
+		for ($layers = 1; $layers < $UPTO; $layers++) {
+			$bitsPerLayer = $bitsPer($layers);
 			if ($bitsPerLayer >= $totalSizeBits) {
 				if ($wordSize != $wordSizeDict[$layers]) {
 					$wordSize = $wordSizeDict[$layers];
@@ -88,22 +101,6 @@ class Encoder
 				}
 				if (count($stuffedBits) + $eccBits <= $bitsPerLayer) {
 					break;
-				}
-			}
-		}
-
-		if ($layers == $LAYERS_COMPACT) {
-			$compact = false;
-			for ($layers = 1; $layers < $LAYERS_FULL; $layers++) {
-				$bitsPerLayer = (112 + 16 * $layers) * $layers;
-				if ($bitsPerLayer >= $totalSizeBits) {
-					if ($wordSize != $wordSizeDict[$layers]) {
-						$wordSize = $wordSizeDict[$layers];
-						$stuffedBits = $this->stuffBits($bits, $wordSize);
-					}
-					if (count($stuffedBits) + $eccBits <= $bitsPerLayer) {
-						break;
-					}
 				}
 			}
 		}
@@ -119,15 +116,12 @@ class Encoder
 		if ($compact) {
 			$matrixSize = $baseMatrixSize = 11 + $layers * 4;
 			$center = intval($matrixSize / 2);
-			$alignmentMap = [];
-			for ($i = 0; $i < $matrixSize; $i++) {
-				$alignmentMap[] = $i;
-			}
+			$alignmentMap = range(0, $matrixSize - 1);
 		} else {
 			$baseMatrixSize = 14 + $layers * 4;
-			$matrixSize = $baseMatrixSize + 1 + 2 * intval((intval($baseMatrixSize / 2) - 1) / 15);
-			$alignmentMap = array_fill(0, $baseMatrixSize, 0);
 			$origCenter = intval($baseMatrixSize / 2);
+			$matrixSize = $baseMatrixSize + 1 + 2 * intval(($origCenter - 1) / 15);
+			$alignmentMap = array_fill(0, $baseMatrixSize, 0);
 			$center = intval($matrixSize / 2);
 			for ($i = 0; $i < $origCenter; $i++) {
 				$newOffset = $i + intval($i / 15);
