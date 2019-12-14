@@ -7,7 +7,7 @@ use Aztec\Encoder\Encoder;
 class Aztec
 {
 	private $options = [];
-	private $pixelGrid;
+	private $renderer;
 
 	public function __construct(array $opts = [])
 	{
@@ -55,28 +55,21 @@ class Aztec
 		return $value;
 	}
 
-	private function render()
-	{
-		return (new Renderer($this->pixelGrid, $this->options));
-	}
-
 	public function toFile(string $filename, bool $forWeb = false)
 	{
 		$ext = strtoupper(substr($filename, -3));
 		($forWeb) AND $filename = null;
 
-		$renderer = $this->render();
-
 		switch($ext)
 		{
 			case "PNG":
-				$renderer->toPNG($filename);
+				$this->renderer->toPNG($filename);
 				break;
 			case "GIF":
-				$renderer->toGIF($filename);
+				$this->renderer->toGIF($filename);
 				break;
 			case "JPG":
-				$renderer->toJPG($filename, $this->options['quality']);
+				$this->renderer->toJPG($filename, $this->options['quality']);
 				break;
 			default:
 				throw azException::InvalidInput('File extension unsupported!');
@@ -86,7 +79,7 @@ class Aztec
 	public function forWeb(string $ext)
 	{
 		if (strtoupper($ext) == "BASE64"){
-			return ($this->render())->toBase64();
+			return $this->renderer->toBase64();
 		} else {
 			$this->toFile($ext, true);
 		}
@@ -94,12 +87,14 @@ class Aztec
 
 	public function forPChart(\pChart\pDraw $MyPicture, $X = 0, $Y = 0)
 	{
-		($this->render())->forPChart($MyPicture->gettheImage(), $X, $Y);
+		$this->renderer->forPChart($MyPicture->gettheImage(), $X, $Y);
 	}
 
 	public function encode($data)
 	{
-		$this->pixelGrid = (new Encoder())->encode($data, $this->options['eccPercent'], $this->options["hint"]);
+		$pixelGrid = (new Encoder())->encode($data, $this->options['eccPercent'], $this->options["hint"]);
+
+		$this->renderer = new Renderer($pixelGrid, $this->options);
 
 		return $this;
 	}
