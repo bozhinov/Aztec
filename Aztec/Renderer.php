@@ -16,11 +16,11 @@ class Renderer
 		$this->image = imagecreate($this->size, $this->size);
 
 		// Extract options
-		list($R,$G,$B) = $options['bgColor']->get();
-		$bgColorAlloc = imagecolorallocate($this->image,$R,$G,$B);
+		list($R, $G, $B) = $options['bgColor']->get();
+		$bgColorAlloc = imagecolorallocate($this->image, $R, $G, $B);
 		imagefill($this->image, 0, 0, $bgColorAlloc);
-		list($R,$G,$B) = $options['color']->get();
-		$colorAlloc = imagecolorallocate($this->image,$R,$G,$B);
+		list($R, $G, $B) = $options['color']->get();
+		$colorAlloc = imagecolorallocate($this->image, $R, $G, $B);
 
 		// Render the code
 		for ($x = 0; $x < $width; $x++) {
